@@ -43,15 +43,29 @@ class YoloGateway:
 
 
 def _check_red_hsv(roi: NDArray[np.uint8]) -> bool:
-    """Check upper third of traffic light ROI for red in HSV space."""
+    """Check the red-light region of a traffic light ROI in HSV space.
+
+    Japan uses mostly horizontal signals (left=red, center=yellow, right=green)
+    but vertical signals also exist (top=red, mid=yellow, bottom=green).
+    Aspect ratio determines orientation:
+      width > height → horizontal → check LEFT 1/3
+      height >= width → vertical  → check UPPER 1/3
+    """
+    h, w = roi.shape[:2]
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    h = roi.shape[0]
-    upper_third = hsv[: h // 3, :, :]
-    if upper_third.size == 0:
+
+    if w > h:
+        # Horizontal signal — red is on the LEFT
+        red_region = hsv[:, : w // 3, :]
+    else:
+        # Vertical signal — red is on the TOP
+        red_region = hsv[: h // 3, :, :]
+
+    if red_region.size == 0:
         return False
 
-    mask_low = cv2.inRange(upper_third, (0, 70, 50), (10, 255, 255))
-    mask_high = cv2.inRange(upper_third, (170, 70, 50), (180, 255, 255))
+    mask_low = cv2.inRange(red_region, (0, 70, 50), (10, 255, 255))
+    mask_high = cv2.inRange(red_region, (170, 70, 50), (180, 255, 255))
     mask = mask_low | mask_high
 
     red_ratio = np.count_nonzero(mask) / max(mask.size, 1)
