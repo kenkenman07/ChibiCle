@@ -32,22 +32,38 @@ export function RidingPage() {
 
   // Start ride on mount
   useEffect(() => {
-    const id = crypto.randomUUID()
+    const init = async () => {
+      const id = crypto.randomUUID()
 
-    db.trips.add({
-      id,
-      startedAt: new Date().toISOString(),
-      distanceM: 0,
-    })
+      // Store locally
+      await db.trips.add({
+        id,
+        startedAt: new Date().toISOString(),
+        distanceM: 0,
+      })
 
-    startRide(id)
-    wakeLock.request()
-    gps.start(id)
-    camera.start()
+      // Also create on backend (best-effort)
+      try {
+        await fetch('/api/trips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        })
+      } catch {
+        // Backend may be offline — local-first is fine
+      }
 
-    timerRef.current = setInterval(() => {
-      useRideStore.getState().tick()
-    }, 1000)
+      startRide(id)
+      wakeLock.request()
+      gps.start(id)
+      camera.start(id) // pass tripId for WebSocket connection
+
+      timerRef.current = setInterval(() => {
+        useRideStore.getState().tick()
+      }, 1000)
+    }
+
+    init()
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -66,6 +82,13 @@ export function RidingPage() {
     await gps.stop(tripId)
     camera.stop()
     await wakeLock.release()
+
+    // End trip on backend (best-effort)
+    try {
+      await fetch(`/api/trips/${tripId}/end`, { method: 'PATCH' })
+    } catch {
+      // Backend may be offline
+    }
 
     const currentTripId = tripId
     endRide()
