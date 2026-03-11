@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState, type RefObject } from 'react'
 import { useRideStore } from '../stores/rideStore'
 import { db } from '../lib/db'
+import { apiWsUrl } from '../lib/api'
 
 interface CameraOptions {
   fps?: number
@@ -48,8 +49,7 @@ export function useCameraStream(
       // Connect WebSocket for frame sending
       const effectiveTripId = tripId ?? options.tripId
       if (effectiveTripId) {
-        const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsUrl = `${wsProtocol}//${location.host}/ws/camera?trip_id=${effectiveTripId}`
+        const wsUrl = apiWsUrl(`/ws/camera?trip_id=${effectiveTripId}`)
         const ws = new WebSocket(wsUrl)
 
         ws.onmessage = (event) => {

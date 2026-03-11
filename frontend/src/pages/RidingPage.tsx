@@ -6,6 +6,7 @@ import { useGpsTracker } from '../hooks/useGpsTracker'
 import { useCameraStream } from '../hooks/useCameraStream'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { db } from '../lib/db'
+import { apiFetch } from '../lib/api'
 
 export function RidingPage() {
   const navigate = useNavigate()
@@ -44,7 +45,7 @@ export function RidingPage() {
 
       // Also create on backend (best-effort)
       try {
-        await fetch('/api/trips', {
+        await apiFetch('/api/trips', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id }),
@@ -85,7 +86,7 @@ export function RidingPage() {
 
     // End trip on backend (best-effort)
     try {
-      await fetch(`/api/trips/${tripId}/end`, { method: 'PATCH' })
+      await apiFetch(`/api/trips/${tripId}/end`, { method: 'PATCH' })
     } catch {
       // Backend may be offline
     }

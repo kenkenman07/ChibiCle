@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState } from 'react'
 import { db } from '../lib/db'
 import { haversineDistance } from '../lib/geo'
+import { apiFetch } from '../lib/api'
 import { useRideStore } from '../stores/rideStore'
 
 const SYNC_INTERVAL_MS = 5000
@@ -23,7 +24,7 @@ export function useGpsTracker() {
 
         if (unsynced.length === 0) return
 
-        const res = await fetch('/api/gps', {
+        const res = await apiFetch('/api/gps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -166,7 +167,7 @@ export function useGpsTracker() {
         .toArray()
 
       if (unsynced.length > 0) {
-        const res = await fetch('/api/gps', {
+        const res = await apiFetch('/api/gps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
