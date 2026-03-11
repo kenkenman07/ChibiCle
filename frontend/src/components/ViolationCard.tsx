@@ -1,8 +1,8 @@
 import { AlertTriangle, Octagon } from 'lucide-react'
-import type { Violation } from '../lib/mockData'
+import type { DbViolation } from '../lib/db'
 import { violationTypeLabel, formatDate } from '../lib/mockData'
 
-export function ViolationCard({ violation }: { violation: Violation }) {
+export function ViolationCard({ violation }: { violation: DbViolation }) {
   const isSignal = violation.type === 'signal_ignore'
 
   return (
