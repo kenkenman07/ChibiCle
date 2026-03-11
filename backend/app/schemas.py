@@ -1,3 +1,5 @@
+"""Pydantic models for API request/response serialization."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -37,7 +39,7 @@ class GpsBatchResponse(BaseModel):
 
 
 class TripCreateRequest(BaseModel):
-    id: str | None = None  # optional client-generated UUID
+    id: str | None = None
 
 
 class TripOut(BaseModel):
@@ -46,11 +48,3 @@ class TripOut(BaseModel):
     ended_at: str | None = None
     distance_m: float = 0.0
     violation_count: int = 0
-
-
-# --- WebSocket ---
-
-
-class WsEvent(BaseModel):
-    type: Literal["violation", "detection", "pong", "ping"]
-    data: dict | None = None
