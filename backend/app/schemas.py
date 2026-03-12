@@ -4,7 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-# GPS
+# --- GPS ---
+
 
 class GpsPointIn(BaseModel):
     lat: float
@@ -13,20 +14,30 @@ class GpsPointIn(BaseModel):
     accuracy_m: float
     recorded_at: str
 
+
 class GpsBatchRequest(BaseModel):
     trip_id: str
     points: list[GpsPointIn]
 
+
 class ViolationOut(BaseModel):
-    type: Literal["signal_ignore", "no_step", "right_side_riding"]
+    type: Literal["signal_ignore", "no_stop", "right_side_riding"]
     lat: float
     lng: float
     detected_at: str
 
-# Trips
+
+class GpsBatchResponse(BaseModel):
+    saved: int
+    violations: list[ViolationOut]
+
+
+# --- Trips ---
+
 
 class TripCreateRequest(BaseModel):
     id: str | None = None
+
 
 class TripOut(BaseModel):
     id: str

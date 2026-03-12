@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+
 @dataclass(frozen=True)
 class GpsPoint:
     lat: float
@@ -8,12 +9,14 @@ class GpsPoint:
     accuracy_m: float
     recorded_at: str
 
+
 @dataclass(frozen=True)
 class Violation:
     type: str
     lat: float
     lng: float
     detected_at: str
+
 
 @dataclass
 class Trip:
@@ -22,11 +25,13 @@ class Trip:
     ended_at: str | None = None
     distance_m: float = 0.0
 
+
 @dataclass(frozen=True)
 class StopSign:
     lat: float
     lng: float
     osm_id: int
+
 
 @dataclass(frozen=True)
 class RoadWay:
