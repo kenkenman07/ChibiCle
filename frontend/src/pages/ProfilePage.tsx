@@ -1,13 +1,18 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, User, Mail, LogOut } from "lucide-react";
 import ScreenWrapper from "../components/ScreenWrapper";
+import { authRepository } from "../modules/auth/auth.repository";
+import { useCurrentUserStore } from "../modules/auth/current-user.state";
 
 const ProfilePage = () => {
   const navigate = useNavigate();
+  const currentUserStore = useCurrentUserStore();
 
-  const handleLogout = () => {
-    // 実際のアプリではここで認証解除処理を行います
-    navigate("/");
+  const handleLogout = async () => {
+    await authRepository.signOut();
+    currentUserStore.set(undefined);
+
+    navigate("/signin");
   };
 
   return (

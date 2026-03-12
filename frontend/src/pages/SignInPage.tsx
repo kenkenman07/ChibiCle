@@ -1,10 +1,31 @@
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShieldAlert, Camera } from "lucide-react";
 import ScreenWrapper from "../components/ScreenWrapper";
+import { authRepository } from "../modules/auth/auth.repository";
+import { useEffect } from "react";
+import { useCurrentUserStore } from "../modules/auth/current-user.state";
 
 const SignInPage = () => {
-  const navigate = useNavigate();
+  const currentUserStore = useCurrentUserStore();
+
+  useEffect(() => {
+    checkUserSignIn();
+  }, []);
+
+  const checkUserSignIn = async () => {
+    const currentUser = await authRepository.getCurrentUser();
+    if (currentUser != null) {
+      currentUserStore.set(currentUser);
+    }
+  };
+
+  const signInGoogle = async () => {
+    await authRepository.signInGoogle();
+  };
+
+  if (currentUserStore.currentUser != null) return <Navigate replace to="/" />;
+
   return (
     <ScreenWrapper bg="bg-white">
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center mt-12">
@@ -30,7 +51,7 @@ const SignInPage = () => {
         </p>
 
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={signInGoogle}
           className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center shadow-lg transition-colors"
         >
           <img
