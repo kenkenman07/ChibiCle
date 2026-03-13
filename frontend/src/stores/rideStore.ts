@@ -23,6 +23,11 @@ interface RideState {
   currentLng: number | null
   elapsedSeconds: number
 
+  // 出発地
+  originLat: number | null
+  originLng: number | null
+  originName: string | null
+
   // 目的地・ルート
   destinationLat: number | null
   destinationLng: number | null
@@ -33,10 +38,11 @@ interface RideState {
   totalIntersections: number
   stoppedIntersections: number
 
+  setOrigin: (lat: number, lng: number, name: string | null) => void
+  setDestination: (lat: number, lng: number, name: string | null) => void
   startRide: (tripId: string) => void
   endRide: () => void
   updateGps: (lat: number, lng: number, speed: number, accuracy: number) => void
-  setDestination: (lat: number, lng: number, name: string | null) => void
   setRoute: (route: RouteData) => void
   updateIntersections: (total: number, stopped: number) => void
   tick: () => void
@@ -50,12 +56,21 @@ export const useRideStore = create<RideState>((set) => ({
   currentLat: null,
   currentLng: null,
   elapsedSeconds: 0,
+  originLat: null,
+  originLng: null,
+  originName: null,
   destinationLat: null,
   destinationLng: null,
   destinationName: null,
   route: null,
   totalIntersections: 0,
   stoppedIntersections: 0,
+
+  setOrigin: (lat, lng, name) =>
+    set({ originLat: lat, originLng: lng, originName: name }),
+
+  setDestination: (lat, lng, name) =>
+    set({ destinationLat: lat, destinationLng: lng, destinationName: name }),
 
   startRide: (tripId) =>
     set({
@@ -66,7 +81,7 @@ export const useRideStore = create<RideState>((set) => ({
       currentLat: null,
       currentLng: null,
       elapsedSeconds: 0,
-      // 注意: route, destination, totalIntersections, stoppedIntersections は
+      // 注意: route, origin, destination, totalIntersections, stoppedIntersections は
       // 意図的にリセットしない — ルート計画時に設定され、
       // 走行フェーズまで保持する必要がある。
     }),
@@ -79,6 +94,9 @@ export const useRideStore = create<RideState>((set) => ({
       currentAccuracy: 0,
       currentLat: null,
       currentLng: null,
+      originLat: null,
+      originLng: null,
+      originName: null,
       destinationLat: null,
       destinationLng: null,
       destinationName: null,
@@ -89,9 +107,6 @@ export const useRideStore = create<RideState>((set) => ({
 
   updateGps: (lat, lng, speed, accuracy) =>
     set({ currentLat: lat, currentLng: lng, currentSpeed: speed, currentAccuracy: accuracy }),
-
-  setDestination: (lat, lng, name) =>
-    set({ destinationLat: lat, destinationLng: lng, destinationName: name }),
 
   setRoute: (route) =>
     set({
