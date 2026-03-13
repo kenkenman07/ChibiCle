@@ -142,18 +142,30 @@ export function RidingPage() {
     }, 500)
   }, [])
 
+  // 目的地変更時にルートをクリア
+  const updateDestination = useCallback(
+    (lat: number, lng: number, name: string | null) => {
+      setDestination(lat, lng, name)
+      if (route) {
+        useRideStore.setState({ route: null, tripId: null, totalIntersections: 0, stoppedIntersections: 0 })
+        setRouteError(null)
+      }
+    },
+    [setDestination, route],
+  )
+
   // 検索結果の選択（出発地 or 目的地フェーズに応じて切り替え）
   const handleSelectSearchResult = useCallback(
     (result: { lat: number; lng: number; display_name: string }) => {
       if (phase === 'origin') {
         setOrigin(result.lat, result.lng, result.display_name)
       } else {
-        setDestination(result.lat, result.lng, result.display_name)
+        updateDestination(result.lat, result.lng, result.display_name)
       }
       setSearchResults([])
       setSearchQuery('')
     },
-    [phase, setOrigin, setDestination],
+    [phase, setOrigin, updateDestination],
   )
 
   // 地図タップ（出発地 or 目的地フェーズに応じて切り替え）
@@ -162,10 +174,10 @@ export function RidingPage() {
       if (phase === 'origin') {
         setOrigin(lat, lng, null)
       } else {
-        setDestination(lat, lng, null)
+        updateDestination(lat, lng, null)
       }
     },
-    [phase, setOrigin, setDestination],
+    [phase, setOrigin, updateDestination],
   )
 
   // バックエンド経由でOSRMルートを取得
