@@ -21,14 +21,12 @@ export function formatDistance(meters: number): string {
 }
 
 export function violationTypeLabel(
-  type: 'signal_ignore' | 'no_stop' | 'right_side_riding',
+  type: 'signal_ignore' | 'no_stop',
 ): string {
   switch (type) {
     case 'signal_ignore':
       return '信号無視'
     case 'no_stop':
       return '一時不停止'
-    case 'right_side_riding':
-      return '右側通行'
   }
 }

@@ -61,8 +61,8 @@ PWA (React SPA)
   └─ Local IndexedDB (trips, gps_points, violations)
 
 FastAPI Server (single app, router separation)
-  ├─ WS /ws/camera — YOLOv8n detects traffic lights, OpenCV HSV checks red, speed > 5km/h = violation
-  ├─ POST /api/gps — Overpass API for stop signs, speed < 3km/h check within 10m = violation
+  ├─ WS /ws/camera — speed > 3km/h + GPS within 25m of traffic signal (Overpass) + YOLOv8n BB ≥0.3% + HSV red = violation
+  ├─ POST /api/gps — Overpass API for stop signs, speed < 1.5km/h check within 10m = violation
   ├─ /api/trips — CRUD (in-memory store for MVP)
   └─ Model loaded once at startup via lifespan context manager
 ```

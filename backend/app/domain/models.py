@@ -1,6 +1,6 @@
 """Pure domain entities — no framework dependencies."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -36,8 +36,9 @@ class StopSign:
 
 
 @dataclass(frozen=True)
-class RoadWay:
+class TrafficSignal:
+    lat: float
+    lng: float
     osm_id: int
-    highway: str
-    oneway: bool
-    geometry: tuple[tuple[float, float], ...] = field(default_factory=tuple)
+
+

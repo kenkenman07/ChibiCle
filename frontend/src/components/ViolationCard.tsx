@@ -1,11 +1,10 @@
-import { AlertTriangle, Octagon, ArrowRightLeft } from 'lucide-react'
+import { AlertTriangle, Octagon } from 'lucide-react'
 import type { DbViolation } from '../lib/db'
 import { violationTypeLabel, formatDate } from '../lib/mockData'
 
 const styleMap = {
   signal_ignore: { bg: 'bg-red-50', icon: 'bg-red-100 text-red-600', Icon: AlertTriangle },
   no_stop: { bg: 'bg-amber-50', icon: 'bg-amber-100 text-amber-600', Icon: Octagon },
-  right_side_riding: { bg: 'bg-orange-50', icon: 'bg-orange-100 text-orange-600', Icon: ArrowRightLeft },
 } as const
 
 export function ViolationCard({ violation }: { violation: DbViolation }) {

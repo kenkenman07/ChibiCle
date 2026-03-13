@@ -12,16 +12,16 @@ class Settings(BaseSettings):
     yolo_confidence: float = 0.4
 
     # Signal violation thresholds
-    red_signal_speed_threshold: float = 5.0  # km/h
+    red_signal_speed_threshold: float = 3.0  # km/h — low enough to catch slow intersection entry
+    red_signal_min_bbox_ratio: float = 0.003  # Filter A: BB must be ≥0.3% of frame area
+    red_signal_proximity_m: float = 25.0  # Filter B: must be within 25m of a traffic signal
 
     # Stop sign thresholds
     stop_sign_radius_m: float = 10.0
-    stop_sign_speed_threshold: float = 3.0  # km/h
+    stop_sign_speed_threshold: float = 1.5  # km/h — law requires full stop; allows for GPS noise
 
-    # Road analysis thresholds
-    road_wrong_side_ratio: float = 0.70
-    road_analysis_window: int = 20
-    road_violation_cooldown_s: float = 120.0
+    # Violation cooldown
+    violation_cooldown_s: float = 120.0
 
     # Overpass API cache
     overpass_cache_ttl_seconds: int = 86400  # 24 hours

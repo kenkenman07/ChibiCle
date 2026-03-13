@@ -48,12 +48,12 @@ async def camera_ws(
 
             # Get latest GPS context from repository
             gps_list = repo.get_points(trip_id)
-            if gps_list:
-                speed = gps_list[-1].speed_kmh
-                lat = gps_list[-1].lat
-                lng = gps_list[-1].lng
-            else:
-                speed, lat, lng = 0.0, 0.0, 0.0
+            if not gps_list:
+                continue  # No GPS data yet — skip frame analysis
+
+            speed = gps_list[-1].speed_kmh
+            lat = gps_list[-1].lat
+            lng = gps_list[-1].lng
 
             violation = await frame_usecase.execute(
                 trip_id, frame_bytes, speed, lat, lng,

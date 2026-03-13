@@ -13,9 +13,15 @@ TRAFFIC_LIGHT_CLASS = 9  # COCO class index
 class YoloGateway:
     """Wraps YOLOv8 model to satisfy the RedSignalAnalyzer protocol."""
 
-    def __init__(self, model: YOLO, confidence: float = 0.4) -> None:
+    def __init__(
+        self,
+        model: YOLO,
+        confidence: float = 0.4,
+        min_bbox_ratio: float = 0.003,
+    ) -> None:
         self._model = model
         self._confidence = confidence
+        self._min_bbox_ratio = min_bbox_ratio
 
     async def detect(self, frame_jpeg: bytes) -> bool:
         """Return True if a red traffic signal is detected in the frame."""
@@ -27,6 +33,10 @@ class YoloGateway:
         if img is None:
             return False
 
+        frame_area = img.shape[0] * img.shape[1]
+        if frame_area == 0:
+            return False
+
         results = self._model(img, conf=self._confidence, verbose=False)
 
         for result in results:
@@ -34,6 +44,12 @@ class YoloGateway:
                 if int(box.cls[0]) != TRAFFIC_LIGHT_CLASS:
                     continue
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
+
+                # Filter A: skip small/distant traffic lights
+                bbox_area = (x2 - x1) * (y2 - y1)
+                if bbox_area / frame_area < self._min_bbox_ratio:
+                    continue
+
                 roi = img[y1:y2, x1:x2]
                 if roi.size == 0:
                     continue

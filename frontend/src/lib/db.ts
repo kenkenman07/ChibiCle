@@ -21,7 +21,7 @@ export interface DbGpsPoint {
 export interface DbViolation {
   id?: number
   tripId: string
-  type: 'signal_ignore' | 'no_stop' | 'right_side_riding'
+  type: 'signal_ignore' | 'no_stop'
   detectedAt: string
   lat: number
   lng: number

@@ -24,7 +24,7 @@ class GpsBatchRequest(BaseModel):
 
 
 class ViolationOut(BaseModel):
-    type: Literal["signal_ignore", "no_stop", "right_side_riding"]
+    type: Literal["signal_ignore", "no_stop"]
     lat: float
     lng: float
     detected_at: str

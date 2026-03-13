@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-from .models import GpsPoint, RoadWay, StopSign, Trip, Violation
+from .models import GpsPoint, StopSign, TrafficSignal, Trip, Violation
 
 
 # ---------------------------------------------------------------------------
@@ -43,8 +43,8 @@ class StopSignSource(Protocol):
     async def get_stop_signs(self, lat: float, lng: float) -> list[StopSign]: ...
 
 
-class RoadGeometrySource(Protocol):
-    async def get_roads(self, lat: float, lng: float) -> list[RoadWay]: ...
+class TrafficSignalSource(Protocol):
+    async def get_traffic_signals(self, lat: float, lng: float) -> list[TrafficSignal]: ...
 
 
 class RedSignalAnalyzer(Protocol):

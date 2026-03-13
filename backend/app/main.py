@@ -12,7 +12,7 @@ from app.adapters.overpass_gateway import OverpassGateway
 from app.adapters.routers import camera, gps, trips
 from app.adapters.yolo_gateway import YoloGateway
 from app.config import Settings
-from app.domain.detectors import RedSignalDetector, RightSideDetector, StopSignDetector
+from app.domain.detectors import RedSignalDetector, StopSignDetector
 from app.usecases.frame_analysis import FrameAnalysisUseCase
 from app.usecases.gps_analysis import GpsAnalysisUseCase
 
@@ -30,7 +30,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     yolo_model = YOLO(settings.yolo_model)
-    yolo = YoloGateway(yolo_model, confidence=settings.yolo_confidence)
+    yolo = YoloGateway(
+        yolo_model,
+        confidence=settings.yolo_confidence,
+        min_bbox_ratio=settings.red_signal_min_bbox_ratio,
+    )
 
     # ---- Domain detectors (Strategy pattern) ----
     gps_detectors = [
@@ -39,17 +43,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             radius_m=settings.stop_sign_radius_m,
             speed_threshold=settings.stop_sign_speed_threshold,
         ),
-        RightSideDetector(
-            source=overpass,
-            window_size=settings.road_analysis_window,
-            ratio=settings.road_wrong_side_ratio,
-        ),
     ]
 
     frame_detectors = [
         RedSignalDetector(
             analyzer=yolo,
+            signal_source=overpass,
             speed_threshold=settings.red_signal_speed_threshold,
+            proximity_m=settings.red_signal_proximity_m,
         ),
     ]
 
@@ -58,12 +59,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         detectors=gps_detectors,
         gps_repo=repo,
         violation_repo=repo,
-        cooldown_s=settings.road_violation_cooldown_s,
+        cooldown_s=settings.violation_cooldown_s,
     )
 
     frame_usecase = FrameAnalysisUseCase(
         detectors=frame_detectors,
         violation_repo=repo,
+        cooldown_s=settings.violation_cooldown_s,
     )
 
     # ---- Expose to routers via app.state ----
