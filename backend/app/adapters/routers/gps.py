@@ -1,3 +1,5 @@
+"""GPS batch endpoint — thin adapter over GpsAnalysisUseCase."""
+
 from fastapi import APIRouter, Request
 
 from app.domain.models import GpsPoint
@@ -5,13 +7,14 @@ from app.schemas import GpsBatchRequest, GpsBatchResponse, ViolationOut
 
 router = APIRouter(prefix="/api", tags=["gps"])
 
+
 @router.post("/gps", response_model=GpsBatchResponse)
 async def receive_gps(body: GpsBatchRequest, request: Request) -> GpsBatchResponse:
     usecase = request.app.state.gps_usecase
 
     points = [
         GpsPoint(
-            lat=p.pat,
+            lat=p.lat,
             lng=p.lng,
             speed_kmh=p.speed_kmh,
             accuracy_m=p.accuracy_m,

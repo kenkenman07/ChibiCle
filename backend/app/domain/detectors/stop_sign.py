@@ -1,3 +1,5 @@
+"""Detect "failure to stop" violations near OSM stop signs."""
+
 from geopy.distance import geodesic
 
 from ..models import GpsPoint, Violation
@@ -10,7 +12,7 @@ class StopSignDetector(GpsViolationDetector):
         self,
         source: StopSignSource,
         radius_m: float = 10.0,
-        speed_threshold: float = 3.0,
+        speed_threshold: float = 1.5,
     ) -> None:
         self._source = source
         self._radius_m = radius_m
@@ -41,10 +43,11 @@ class StopSignDetector(GpsViolationDetector):
                 if dist > self._radius_m:
                     continue
 
-                # Check window: 5 points before and after
-                window_start = max(0, i - 5)
-                window_end = min(len(new_points), i + 6)
-                window = new_points[window_start:window_end]
+                # Check window: 5 points before and after (in full history)
+                history_idx = len(history) - len(new_points) + i
+                window_start = max(0, history_idx - 5)
+                window_end = min(len(history), history_idx + 6)
+                window = history[window_start:window_end]
 
                 stopped = any(
                     p.speed_kmh < self._speed_threshold

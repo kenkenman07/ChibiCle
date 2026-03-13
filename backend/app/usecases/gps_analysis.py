@@ -1,3 +1,5 @@
+"""Use case: analyse a GPS batch and detect violations."""
+
 from datetime import datetime, timezone
 
 from app.domain.detectors.base import GpsViolationDetector
@@ -19,9 +21,7 @@ class GpsAnalysisUseCase:
         self._cooldown_s = cooldown_s
 
     async def execute(
-        self,
-        trip_id: str,
-        points: list[GpsPoint],
+        self, trip_id: str, points: list[GpsPoint],
     ) -> list[Violation]:
         self._gps_repo.append_points(trip_id, points)
         history = self._gps_repo.get_points(trip_id)

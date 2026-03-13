@@ -1,10 +1,13 @@
+"""WebSocket camera endpoint — thin adapter over FrameAnalysisUseCase."""
+
 import asyncio
 import json
 import time
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 router = APIRouter(tags=["camera"])
+
 
 @router.websocket("/ws/camera")
 async def camera_ws(
@@ -16,9 +19,9 @@ async def camera_ws(
     settings = ws.app.state.settings
     frame_usecase = ws.app.state.frame_usecase
     repo = ws.app.state.repo
-    
+
     frame_queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=100)
-    last_pong = item.time()
+    last_pong = time.time()
     running = True
 
     async def heartbeat() -> None:
@@ -34,7 +37,7 @@ async def camera_ws(
             except Exception:
                 running = False
                 return
-        
+
     async def process_frames() -> None:
         nonlocal running
         while running:
@@ -43,17 +46,17 @@ async def camera_ws(
             except asyncio.TimeoutError:
                 continue
 
-            # 最新のGPS情報をリポジトリから取得
+            # Get latest GPS context from repository
             gps_list = repo.get_points(trip_id)
-            if gps_list:
-                speed = gps_list[-1].speed_kmh
-                lat = gps_list[-1].lat
-                lng = gps_list[-1].lng
-            else:
-                speed, lat, lng = 0.0, 0.0, 0.0
+            if not gps_list:
+                continue  # No GPS data yet — skip frame analysis
+
+            speed = gps_list[-1].speed_kmh
+            lat = gps_list[-1].lat
+            lng = gps_list[-1].lng
 
             violation = await frame_usecase.execute(
-                trip_id, frame_bytes, speed, lat, lng
+                trip_id, frame_bytes, speed, lat, lng,
             )
 
             if violation:
@@ -71,37 +74,37 @@ async def camera_ws(
                     running = False
                     return
 
-        hb_task = asyncio.create_task(heartbeat())
-        process_task = asyncfio.create_task(process_frames())
+    hb_task = asyncio.create_task(heartbeat())
+    process_task = asyncio.create_task(process_frames())
 
-        try:
-            while running:
-                msg = await ws.receive()
+    try:
+        while running:
+            msg = await ws.receive()
 
-                if msg.get("type") == "websocket.disconnect":
-                    break
+            if msg.get("type") == "websocket.disconnect":
+                break
 
-                if "bytes" in msg and msg["bytes"]:
+            if "bytes" in msg and msg["bytes"]:
+                try:
+                    frame_queue.put_nowait(msg["bytes"])
+                except asyncio.QueueFull:
                     try:
-                        frame_queue.put_nowait(msg["bytes"])
-                    except asyncio.QueueFull:
-                        try:
-                            frame_queue.get_nowait()
-                        except asyncio.QueueEmpty:
-                            pass
+                        frame_queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        pass
                     frame_queue.put_nowait(msg["bytes"])
 
-                elif "text" in msg and msg["text"]:
-                    try:
-                        data = json.loads(msg["text"])
-                        if data.get("type") == "pong":
-                            last_pong = time.time()
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-                
-        except WebSocketDisconect:
-            pass
-        finally:
-            running = False
-            hb_task.cancel()
-            process_task.cancel()
+            elif "text" in msg and msg["text"]:
+                try:
+                    data = json.loads(msg["text"])
+                    if data.get("type") == "pong":
+                        last_pong = time.time()
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        running = False
+        hb_task.cancel()
+        process_task.cancel()

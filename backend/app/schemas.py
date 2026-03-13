@@ -1,8 +1,11 @@
+"""Pydantic models for API request/response serialization."""
+
 from __future__ import annotations
 
 from typing import Literal
 
 from pydantic import BaseModel
+
 
 # --- GPS ---
 
@@ -21,7 +24,7 @@ class GpsBatchRequest(BaseModel):
 
 
 class ViolationOut(BaseModel):
-    type: Literal["signal_ignore", "no_stop", "right_side_riding"]
+    type: Literal["signal_ignore", "no_stop"]
     lat: float
     lng: float
     detected_at: str
