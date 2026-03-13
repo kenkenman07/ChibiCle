@@ -28,6 +28,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     osrm = OsrmGateway(
         base_url=settings.osrm_base_url,
         min_roads=settings.intersection_min_roads,
+        filter_non_public_roads=settings.filter_non_public_roads,
+        overpass_url=settings.overpass_api_url,
+        public_road_radius_m=settings.public_road_radius_m,
     )
 
     # ---- ユースケース層（アプリケーション層） ----

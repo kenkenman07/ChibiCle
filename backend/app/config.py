@@ -23,4 +23,9 @@ class Settings(BaseSettings):
     # Route deviation
     off_route_threshold_m: float = 50.0  # 経路逸脱判定閾値
 
+    # Public road filtering (Overpass API)
+    filter_non_public_roads: bool = True  # 公道上の交差点のみカウント
+    overpass_api_url: str = "https://overpass-api.de/api/interpreter"
+    public_road_radius_m: float = 20.0  # 交差点と公道の近接判定半径
+
     model_config = {"env_prefix": "BTD_"}
