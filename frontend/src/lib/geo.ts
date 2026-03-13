@@ -1,4 +1,4 @@
-const R = 6371000 // Earth radius in meters
+const R = 6371000 // 地球の半径（メートル）
 
 export function haversineDistance(
   lat1: number,

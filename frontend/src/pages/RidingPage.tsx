@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents } from 'react-leaflet'
 import { icon } from 'leaflet'
-import { MapPin, Square, AlertTriangle, Navigation, Search, Loader2, CheckCircle } from 'lucide-react'
+import { MapPin, Square, AlertTriangle, Navigation, Search, Loader2, CheckCircle, ShieldCheck } from 'lucide-react'
 import { useRideStore, type RouteData } from '../stores/rideStore'
 import { useGpsTracker } from '../hooks/useGpsTracker'
 import { useWakeLock } from '../hooks/useWakeLock'
@@ -39,7 +39,7 @@ const intersectionPendingIcon = icon({
   iconAnchor: [10, 33],
 })
 
-/** Component to handle map click for destination selection */
+/** 地図クリックで目的地を選択するコンポーネント */
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -53,7 +53,7 @@ export function RidingPage() {
   const navigate = useNavigate()
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Store state
+  // ストアの状態
   const isRiding = useRideStore((s) => s.isRiding)
   const tripId = useRideStore((s) => s.tripId)
   const currentSpeed = useRideStore((s) => s.currentSpeed)
@@ -74,8 +74,8 @@ export function RidingPage() {
   const gps = useGpsTracker()
   const wakeLock = useWakeLock()
 
-  // Phase state: 'setup' | 'riding'
-  const [phase, setPhase] = useState<'setup' | 'riding'>('setup')
+  // フェーズ状態: 'setup'(設定) | 'confirm'(確認) | 'riding'(走行中)
+  const [phase, setPhase] = useState<'setup' | 'confirm' | 'riding'>('setup')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Array<{ lat: number; lng: number; display_name: string }>>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -84,21 +84,21 @@ export function RidingPage() {
   const [routeError, setRouteError] = useState<string | null>(null)
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Get current location on mount
+  // マウント時に現在地を取得
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
       },
       () => {
-        // Fallback: Tokyo
+        // フォールバック: 東京
         setMyLocation({ lat: 35.6812, lng: 139.7671 })
       },
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }, [])
 
-  // Address search with debounce
+  // デバウンス付き住所検索
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query)
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
@@ -130,14 +130,14 @@ export function RidingPage() {
     [setDestination],
   )
 
-  // Fetch route from OSRM via backend
+  // バックエンド経由でOSRMルートを取得
   const handleFetchRoute = useCallback(async () => {
     if (!myLocation || destinationLat == null || destinationLng == null) return
     setIsLoadingRoute(true)
     setRouteError(null)
 
     try {
-      // Create trip with destination
+      // 目的地付きトリップを作成
       const tripIdNew = crypto.randomUUID()
 
       await db.trips.add({
@@ -160,7 +160,7 @@ export function RidingPage() {
 
       if (!tripRes.ok) throw new Error('Trip creation failed')
 
-      // Plan route
+      // ルート計画
       const routeRes = await apiFetch(
         `/api/trips/${tripIdNew}/route?origin_lat=${myLocation.lat}&origin_lng=${myLocation.lng}`,
         { method: 'POST' },
@@ -171,7 +171,7 @@ export function RidingPage() {
       const tripData = await routeRes.json()
       const routeData: RouteData = tripData.route
 
-      // Save route to IndexedDB
+      // ルートをIndexedDBに保存
       await db.routes.put({
         tripId: tripIdNew,
         geometry: routeData.geometry,
@@ -179,7 +179,7 @@ export function RidingPage() {
         durationS: routeData.duration_s,
       })
 
-      // Save intersection results to IndexedDB
+      // 交差点結果をIndexedDBに保存
       for (const ix of routeData.intersections) {
         await db.intersectionResults.add({
           tripId: tripIdNew,
@@ -192,9 +192,9 @@ export function RidingPage() {
         })
       }
 
-      // Store tripId, route, destination for riding phase.
-      // Do NOT call startRide here — that sets isRiding=true.
-      // The ride starts only when the user presses "走行開始".
+      // 走行フェーズ用にtripId・ルート・目的地をストアに保存。
+      // ここではstartRideを呼ばない（isRiding=trueになるため）。
+      // 走行はユーザーが「走行開始」を押した時に開始する。
       useRideStore.setState({
         tripId: tripIdNew,
         route: routeData,
@@ -211,7 +211,7 @@ export function RidingPage() {
     }
   }, [myLocation, destinationLat, destinationLng, destinationName])
 
-  // Start the actual ride
+  // 走行を開始
   const handleStartRiding = useCallback(() => {
     const currentTripId = useRideStore.getState().tripId
     if (!currentTripId) return
@@ -241,7 +241,7 @@ export function RidingPage() {
     try {
       await apiFetch(`/api/trips/${tripId}/end`, { method: 'PATCH' })
     } catch {
-      // Backend may be offline
+      // バックエンドがオフラインの可能性
     }
 
     const currentTripId = tripId
@@ -261,7 +261,7 @@ export function RidingPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }
 
-  // ===== PHASE 1: Destination setup =====
+  // ===== フェーズ1: 目的地設定 =====
   if (phase === 'setup') {
     const mapCenter: [number, number] = destinationLat != null && destinationLng != null
       ? [destinationLat, destinationLng]
@@ -397,11 +397,11 @@ export function RidingPage() {
             </button>
           ) : (
             <button
-              onClick={handleStartRiding}
-              className="w-full bg-success text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition active:bg-success/80"
+              onClick={() => setPhase('confirm')}
+              className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition active:bg-primary/80"
             >
-              <CheckCircle size={18} />
-              走行開始
+              <ShieldCheck size={18} />
+              おうちの人と確認する
             </button>
           )}
         </div>
@@ -409,7 +409,90 @@ export function RidingPage() {
     )
   }
 
-  // ===== PHASE 2: Riding =====
+  // ===== フェーズ2: 保護者確認 =====
+  if (phase === 'confirm' && route) {
+    return (
+      <div className="h-full bg-gray-50 flex flex-col">
+        {/* Header */}
+        <div className="bg-white px-4 py-3 border-b border-gray-100">
+          <h1 className="text-lg font-bold text-gray-900">おうちの人といっしょに確認しよう</h1>
+          <p className="text-xs text-gray-500 mt-0.5">走り出すまえに、いっしょにチェックしてね</p>
+        </div>
+
+        {/* Confirmation content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {/* Route summary card */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-3">
+              <Navigation size={16} className="text-primary" />
+              <span className="text-sm font-bold text-gray-900 truncate">
+                {destinationName ?? `${destinationLat!.toFixed(4)}, ${destinationLng!.toFixed(4)}`}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="bg-gray-50 rounded-xl py-2">
+                <p className="text-gray-500 text-xs">きょり</p>
+                <p className="text-lg font-bold text-gray-900">{(route.distance_m / 1000).toFixed(1)} km</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl py-2">
+                <p className="text-gray-500 text-xs">じかん</p>
+                <p className="text-lg font-bold text-gray-900">やく {Math.round(route.duration_s / 60)}分</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Intersection count highlight */}
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-center">
+            <p className="text-amber-700 text-sm font-bold mb-1">この道には</p>
+            <p className="text-5xl font-black text-amber-600 my-2">{route.intersections.length}</p>
+            <p className="text-amber-700 text-sm font-bold">つの交差点があるよ</p>
+            <p className="text-amber-600 text-xs mt-2">ぜんぶの交差点でいちどとまろうね！</p>
+          </div>
+
+          {/* Parent checklist */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck size={18} className="text-blue-600" />
+              <p className="text-sm font-bold text-blue-800">保護者の方へ</p>
+            </div>
+            <ul className="space-y-2 text-sm text-blue-700">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span>経路上に <b>{route.intersections.length}箇所</b> の交差点があります</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span>すべての交差点で一時停止するようお子さまに声かけをお願いします</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5">•</span>
+                <span>走行中はスマートフォンをさわらないよう伝えてください</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Bottom buttons */}
+        <div className="bg-white px-4 pt-3 pb-6 border-t border-gray-200 safe-area-bottom space-y-2">
+          <button
+            onClick={handleStartRiding}
+            className="w-full bg-success text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition active:bg-success/80"
+          >
+            <CheckCircle size={18} />
+            かくにんできたら走行開始！
+          </button>
+          <button
+            onClick={() => setPhase('setup')}
+            className="w-full text-gray-500 text-sm py-2"
+          >
+            もどる
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ===== フェーズ3: 走行中 =====
   return (
     <div className="h-full bg-gray-900 flex flex-col relative overflow-hidden">
       {/* Map view during riding */}

@@ -1,20 +1,20 @@
 /**
- * Centralized API client — decouples frontend from backend URL.
+ * APIクライアント — フロントエンドとバックエンドURLを分離。
  *
- * In development with Vite proxy, VITE_API_BASE_URL can be left empty
- * (relative paths go through the proxy).
- * In production, set VITE_API_BASE_URL to the backend origin
- * (e.g. "https://api.example.com").
+ * Viteプロキシ使用時はVITE_API_BASE_URLを空にできる
+ * （相対パスがプロキシを経由する）。
+ * 本番環境ではバックエンドのオリジンを設定
+ * （例: "https://api.example.com"）。
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') ?? ''
 
-/** Standard fetch wrapper that prepends the API base URL. */
+/** APIベースURLを付与するfetchラッパー。 */
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${path}`, init)
 }
 
-/** Search addresses via Nominatim geocoding API. */
+/** NominatimジオコーディングAPIで住所検索。 */
 export async function searchAddress(
   query: string,
 ): Promise<Array<{ lat: number; lng: number; display_name: string }>> {

@@ -1,5 +1,5 @@
-// Utility functions used across the app.
-// DB types are in ./db.ts — these are formatting helpers only.
+// アプリ全体で使用するユーティリティ関数。
+// DB型は ./db.ts に定義 — ここはフォーマット用ヘルパーのみ。
 
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr)

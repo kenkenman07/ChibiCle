@@ -33,7 +33,7 @@ export interface DbIntersectionResult {
 
 export interface DbRoute {
   tripId: string
-  geometry: number[][]  // [[lat, lng], ...]
+  geometry: number[][]  // [[緯度, 経度], ...]
   distanceM: number
   durationS: number
 }

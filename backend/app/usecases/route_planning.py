@@ -1,4 +1,4 @@
-"""Use case: plan a bicycle route and initialise intersection tracking."""
+"""ユースケース: 自転車ルートの計画と交差点トラッキングの初期化。"""
 
 from app.domain.models import IntersectionResult, Route
 from app.domain.ports import RouteRepository, RoutingService

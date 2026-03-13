@@ -17,7 +17,7 @@ export function useWakeLock() {
         sentinelRef.current = null
       })
     } catch {
-      // Low battery or other OS restriction
+      // バッテリー残量不足やOSの制限
     }
   }, [])
 
@@ -30,7 +30,7 @@ export function useWakeLock() {
     }
   }, [])
 
-  // Re-acquire on tab visibility change
+  // タブ再表示時にWake Lockを再取得
   useEffect(() => {
     const onVisibilityChange = async () => {
       if (
@@ -42,7 +42,7 @@ export function useWakeLock() {
           sentinelRef.current = await navigator.wakeLock.request('screen')
           setIsActive(true)
         } catch {
-          // ignore
+          // 再取得失敗（無視）
         }
       }
     }
@@ -50,7 +50,7 @@ export function useWakeLock() {
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   }, [])
 
-  // Cleanup on unmount
+  // アンマウント時にクリーンアップ
   useEffect(() => {
     return () => {
       shouldBeActiveRef.current = false

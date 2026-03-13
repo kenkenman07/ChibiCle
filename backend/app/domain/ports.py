@@ -1,7 +1,7 @@
-"""Port interfaces (Protocol classes) for dependency inversion.
+"""依存性逆転のためのポートインターフェース（Protocolクラス）。
 
-Domain and use-case layers depend on these protocols.
-Adapter layer provides concrete implementations.
+ドメイン層・ユースケース層はこれらのプロトコルに依存する。
+アダプター層が具体的な実装を提供する。
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from .models import GpsPoint, IntersectionResult, Route, Trip
 
 
 # ---------------------------------------------------------------------------
-# Repository ports
+# リポジトリポート
 # ---------------------------------------------------------------------------
 
 
@@ -37,7 +37,7 @@ class RouteRepository(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Gateway ports (external services)
+# ゲートウェイポート（外部サービス）
 # ---------------------------------------------------------------------------
 
 

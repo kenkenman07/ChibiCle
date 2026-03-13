@@ -56,7 +56,7 @@ export function ResultPage() {
     [tripId],
   )
 
-  // Loading
+  // 読み込み中
   if (trip === undefined || gpsPoints === undefined || intersectionResults === undefined) {
     return (
       <div className="min-h-full flex items-center justify-center">
@@ -65,7 +65,7 @@ export function ResultPage() {
     )
   }
 
-  // Not found
+  // データなし
   if (!trip) {
     return (
       <div className="min-h-full flex flex-col items-center justify-center px-4">
@@ -86,7 +86,7 @@ export function ResultPage() {
   const missedCount = totalCount - stoppedCount
   const allStopped = totalCount > 0 && missedCount === 0
 
-  // Compute map center from GPS data
+  // GPSデータから地図の中心を計算
   const center: [number, number] = gpsRoute.length >= 2
     ? [
         gpsPoints.reduce((s, p) => s + p.lat, 0) / gpsPoints.length,

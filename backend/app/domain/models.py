@@ -1,4 +1,4 @@
-"""Pure domain entities — no framework dependencies."""
+"""純粋なドメインエンティティ — フレームワーク依存なし。"""
 
 from dataclasses import dataclass, field
 

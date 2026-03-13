@@ -46,10 +46,10 @@ export function useGpsTracker() {
           const data = await res.json()
 
           if (data.rerouted) {
-            // Reroute happened — intersection indices changed.
-            // Skip incremental intersection_updates (they reference new indices
-            // that don't exist in IndexedDB yet). Instead, fetch the full updated
-            // trip and replace all local route/intersection data.
+            // リルートが発生 — 交差点インデックスが変更された。
+            // 差分更新の intersection_updates はスキップし（新インデックスが
+            // IndexedDB に未登録のため）、代わりにトリップ全体を再取得して
+            // ローカルのルート・交差点データを置き換える。
             try {
               const tripRes = await apiFetch(`/api/trips/${tripId}`)
               if (tripRes.ok) {
@@ -79,10 +79,10 @@ export function useGpsTracker() {
                 }
               }
             } catch {
-              // Reroute data will sync on next interval
+              // リルートデータは次回の同期間隔で再取得
             }
           } else if (data.intersection_updates?.length > 0) {
-            // Normal case — apply incremental intersection updates
+            // 通常ケース — 交差点結果の差分更新を適用
             for (const update of data.intersection_updates) {
               await db.intersectionResults
                 .where('[tripId+index]')
@@ -102,7 +102,7 @@ export function useGpsTracker() {
           }
         }
       } catch {
-        // Network error — will retry next interval
+        // ネットワークエラー — 次回の同期間隔でリトライ
       }
     }, SYNC_INTERVAL_MS)
   }, [])
@@ -184,7 +184,7 @@ export function useGpsTracker() {
         },
       )
 
-      // Start batch sync to backend
+      // バックエンドへのバッチ同期を開始
       startSync(tripId)
     },
     [startSync],
@@ -200,7 +200,7 @@ export function useGpsTracker() {
       syncIntervalRef.current = null
     }
 
-    // Final flush of unsynced points
+    // 未同期ポイントの最終フラッシュ
     try {
       const unsynced = await db.gpsPoints
         .where('tripId')
@@ -227,7 +227,7 @@ export function useGpsTracker() {
           const ids = unsynced.map((p) => p.id!).filter(Boolean)
           await db.gpsPoints.where('id').anyOf(ids).modify({ synced: true })
 
-          // Process final intersection results so ResultPage is accurate
+          // 最終的な交差点結果を処理し、結果画面の正確性を保証
           const data = await res.json()
           if (data.intersection_updates?.length > 0) {
             for (const update of data.intersection_updates) {
@@ -243,10 +243,10 @@ export function useGpsTracker() {
         }
       }
     } catch {
-      // Offline — data remains in IndexedDB for later sync
+      // オフライン — データはIndexedDBに残り、後で同期
     }
 
-    // Finalize trip
+    // トリップを終了
     await db.trips.update(tripId, {
       endedAt: new Date().toISOString(),
       distanceM: Math.round(totalDistanceRef.current),

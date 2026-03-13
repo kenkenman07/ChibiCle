@@ -1,11 +1,11 @@
-"""Pydantic models for API request/response serialization."""
+"""APIリクエスト・レスポンスのPydanticモデル。"""
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
 
-# --- GPS ---
+# --- GPS関連 ---
 
 
 class GpsPointIn(BaseModel):
@@ -33,7 +33,7 @@ class GpsBatchResponse(BaseModel):
     rerouted: bool = False
 
 
-# --- Trips ---
+# --- トリップ関連 ---
 
 
 class TripCreateRequest(BaseModel):
@@ -52,7 +52,7 @@ class IntersectionOut(BaseModel):
 
 
 class RouteOut(BaseModel):
-    geometry: list[list[float]]  # [[lat, lng], ...]
+    geometry: list[list[float]]  # [[緯度, 経度], ...]
     intersections: list[IntersectionOut]
     distance_m: float
     duration_s: float

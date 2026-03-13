@@ -1,4 +1,4 @@
-"""Use case: analyse GPS batch — check intersection stops and reroute if needed."""
+"""ユースケース: GPSバッチ分析 — 交差点での一時停止判定とリルート処理。"""
 
 from geopy.distance import geodesic
 
@@ -47,7 +47,7 @@ class GpsAnalysisUseCase:
         rerouted = False
         route = self._route_repo.get_route(trip_id)
 
-        # Reroute if off-route
+        # 経路逸脱時にリルート
         if route and points:
             last_point = points[-1]
             if self._is_off_route(last_point, route):
@@ -68,7 +68,7 @@ class GpsAnalysisUseCase:
                     route = new_route
                     rerouted = True
 
-        # Check intersections
+        # 交差点での一時停止を判定
         results = self._route_repo.get_intersection_results(trip_id)
         for point in points:
             if point.accuracy_m > 20:
@@ -95,7 +95,7 @@ class GpsAnalysisUseCase:
         )
 
     def _is_off_route(self, point: GpsPoint, route: Route) -> bool:
-        """Check if point is too far from any segment of the route geometry."""
+        """ポイントがルートジオメトリのいずれかのセグメントから離れすぎていないか判定。"""
         min_dist = float("inf")
         for lat, lng in route.geometry:
             dist = geodesic((point.lat, point.lng), (lat, lng)).meters

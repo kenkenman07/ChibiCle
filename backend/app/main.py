@@ -1,4 +1,4 @@
-"""FastAPI application — Clean Architecture DI wiring."""
+"""FastAPIアプリケーション — クリーンアーキテクチャDI配線。"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -18,7 +18,7 @@ settings = Settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # ---- Adapters (outermost layer) ----
+    # ---- アダプター層（最外層） ----
     repo = InMemoryRepository()
 
     osrm = OsrmGateway(
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         min_roads=settings.intersection_min_roads,
     )
 
-    # ---- Use cases (application layer) ----
+    # ---- ユースケース層（アプリケーション層） ----
     route_usecase = RoutePlanningUseCase(
         routing_service=osrm,
         repo=repo,
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         off_route_threshold_m=settings.off_route_threshold_m,
     )
 
-    # ---- Expose to routers via app.state ----
+    # ---- app.state経由でルーターに公開 ----
     app.state.settings = settings
     app.state.repo = repo
     app.state.gps_usecase = gps_usecase

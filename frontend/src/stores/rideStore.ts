@@ -23,13 +23,13 @@ interface RideState {
   currentLng: number | null
   elapsedSeconds: number
 
-  // Destination & route
+  // 目的地・ルート
   destinationLat: number | null
   destinationLng: number | null
   destinationName: string | null
   route: RouteData | null
 
-  // Intersection tracking
+  // 交差点トラッキング
   totalIntersections: number
   stoppedIntersections: number
 
@@ -66,9 +66,9 @@ export const useRideStore = create<RideState>((set) => ({
       currentLat: null,
       currentLng: null,
       elapsedSeconds: 0,
-      // NOTE: route, destination, totalIntersections, stoppedIntersections
-      // are intentionally NOT reset — they are set during route planning
-      // and must survive into the riding phase.
+      // 注意: route, destination, totalIntersections, stoppedIntersections は
+      // 意図的にリセットしない — ルート計画時に設定され、
+      // 走行フェーズまで保持する必要がある。
     }),
 
   endRide: () =>

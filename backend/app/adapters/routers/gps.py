@@ -1,4 +1,4 @@
-"""GPS batch endpoint — thin adapter over GpsAnalysisUseCase."""
+"""GPSバッチエンドポイント — GpsAnalysisUseCase上の薄いアダプター。"""
 
 from fastapi import APIRouter, Request
 

@@ -1,17 +1,3 @@
-# Dataset images, labels, and generated data (large files, not tracked in Git)
-data/GeoTechnologies_Japan_Road_Signs_78/images/
-data/GeoTechnologies_Japan_Road_Signs_78/labels/
-data/GeoTechnologies_Japan_Road_Signs_78/.DS_Store
-data/road_signs_yolo/
-data/merged_yolo/
-data/coco_tmp/
-
-# YOLO training runs (model weights, logs)
-runs/
-
-# Keep data scripts tracked (augmentation, training, preparation scripts)
-!data/*.py
-
 # Python
 __pycache__/
 *.py[cod]
@@ -19,10 +5,6 @@ __pycache__/
 .venv/
 venv/
 env/
-
-# YOLO model weights
-*.pt
-*.onnx
 
 # Node
 node_modules/

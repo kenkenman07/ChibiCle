@@ -1,4 +1,4 @@
-"""OSRM routing gateway — fetches bicycle routes and extracts intersections."""
+"""OSRMルーティングゲートウェイ — 自転車ルートの取得と交差点の抽出。"""
 
 import httpx
 
@@ -6,7 +6,7 @@ from app.domain.models import Intersection, Route
 
 
 class OsrmGateway:
-    """Implements RoutingService protocol using OSRM public API."""
+    """OSRM公開APIを使用してRoutingServiceプロトコルを実装。"""
 
     def __init__(self, base_url: str, min_roads: int = 3) -> None:
         self._base_url = base_url.rstrip("/")
@@ -17,7 +17,7 @@ class OsrmGateway:
         origin: tuple[float, float],
         destination: tuple[float, float],
     ) -> Route:
-        # OSRM expects lng,lat order
+        # OSRMは経度,緯度の順で指定
         coords = f"{origin[1]},{origin[0]};{destination[1]},{destination[0]}"
         url = (
             f"{self._base_url}/route/v1/bicycle/{coords}"
@@ -31,11 +31,11 @@ class OsrmGateway:
 
         osrm_route = data["routes"][0]
 
-        # Extract geometry (GeoJSON coords are [lng, lat])
+        # ジオメトリを抽出（GeoJSON座標は[経度, 緯度]の順）
         geojson_coords = osrm_route["geometry"]["coordinates"]
-        geometry = [(c[1], c[0]) for c in geojson_coords]  # convert to (lat, lng)
+        geometry = [(c[1], c[0]) for c in geojson_coords]  # (緯度, 経度)に変換
 
-        # Extract intersections from steps
+        # ステップから交差点を抽出
         intersections: list[Intersection] = []
         seen: set[tuple[float, float]] = set()
         idx = 0

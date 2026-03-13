@@ -1,4 +1,4 @@
-"""Trip CRUD endpoints — thin adapter over repository."""
+"""トリップCRUDエンドポイント — リポジトリ上の薄いアダプター。"""
 
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -76,7 +76,7 @@ async def plan_route(
     origin_lat: float | None = None,
     origin_lng: float | None = None,
 ) -> TripOut:
-    """Plan a route after trip creation, once we have the user's GPS location."""
+    """トリップ作成後、ユーザーのGPS位置情報を取得してからルートを計画。"""
     repo = request.app.state.repo
     route_usecase = request.app.state.route_usecase
 
