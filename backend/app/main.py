@@ -4,6 +4,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,6 +23,16 @@ settings = Settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # ---- 永続HTTPクライアント（コネクション再利用） ----
+    http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(15.0, connect=5.0),
+        limits=httpx.Limits(
+            max_keepalive_connections=20,
+            max_connections=100,
+            keepalive_expiry=30,
+        ),
+    )
+
     # ---- アダプター層（最外層） ----
     repo = InMemoryRepository()
 
@@ -31,6 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         filter_non_public_roads=settings.filter_non_public_roads,
         overpass_url=settings.overpass_api_url,
         public_road_radius_m=settings.public_road_radius_m,
+        http_client=http_client,
     )
 
     # ---- ユースケース層（アプリケーション層） ----
@@ -65,6 +77,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("=============================")
 
     yield
+
+    # ---- クリーンアップ ----
+    await http_client.aclose()
 
 
 app = FastAPI(title="Blue Ticket Driving API", lifespan=lifespan)

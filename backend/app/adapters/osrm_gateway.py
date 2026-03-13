@@ -20,6 +20,12 @@ PUBLIC_ROAD_TYPES = frozenset({
     "living_street",
 })
 
+# Overpass QL の highway 正規表現（起動時に一度だけ構築）
+_HIGHWAY_REGEX = "|".join(PUBLIC_ROAD_TYPES)
+
+# ノードキャッシュ最大サイズ
+_NODE_CACHE_MAX = 50_000
+
 
 class OsrmRoutingError(Exception):
     """OSRMルーティングに失敗した場合のエラー。"""
@@ -35,15 +41,36 @@ class OsrmGateway:
         filter_non_public_roads: bool = True,
         overpass_url: str = "https://overpass-api.de/api/interpreter",
         public_road_radius_m: float = 20.0,
+        http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._min_roads = min_roads
         self._filter_non_public_roads = filter_non_public_roads
         self._overpass_url = overpass_url
         self._public_road_radius_m = public_road_radius_m
+        self._http = http_client
+
+        # OSMノードID → 公道上かどうかのキャッシュ
+        self._node_cache: dict[int, bool] = {}
 
     async def get_bicycle_route(
         self,
+        origin: tuple[float, float],
+        destination: tuple[float, float],
+    ) -> Route:
+        client = self._http or httpx.AsyncClient(
+            timeout=httpx.Timeout(15.0, connect=5.0),
+        )
+        try:
+            return await self._do_route(client, origin, destination)
+        finally:
+            # 外部注入されたクライアントは閉じない
+            if not self._http:
+                await client.aclose()
+
+    async def _do_route(
+        self,
+        client: httpx.AsyncClient,
         origin: tuple[float, float],
         destination: tuple[float, float],
     ) -> Route:
@@ -54,11 +81,11 @@ class OsrmGateway:
             "?steps=true&geometries=geojson&overview=full&annotations=nodes"
         )
 
+        t0 = time.monotonic()
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(url)
-                resp.raise_for_status()
-                data = resp.json()
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
         except httpx.TimeoutException:
             logger.error("OSRMリクエストがタイムアウト: %s", url)
             raise OsrmRoutingError("ルーティングサーバーへの接続がタイムアウトしました")
@@ -70,6 +97,7 @@ class OsrmGateway:
         except httpx.RequestError as e:
             logger.error("OSRMリクエストエラー: %s", e)
             raise OsrmRoutingError("ルーティングサーバーに接続できません")
+        logger.info("OSRM: %.1f秒", time.monotonic() - t0)
 
         if data.get("code") != "Ok":
             msg = data.get("message", "不明なエラー")
@@ -127,7 +155,7 @@ class OsrmGateway:
         # 公道フィルタリング
         if self._filter_non_public_roads and intersections:
             intersections = await self._filter_public_road_intersections(
-                intersections, isec_node_ids,
+                client, intersections, isec_node_ids,
             )
 
         return Route(
@@ -138,16 +166,16 @@ class OsrmGateway:
         )
 
     # ------------------------------------------------------------------
-    # Overpass API による公道フィルタリング（OSMノードIDベース）
+    # Overpass API による公道フィルタリング（OSMノードIDベース + キャッシュ）
     # ------------------------------------------------------------------
 
     async def _filter_public_road_intersections(
         self,
+        client: httpx.AsyncClient,
         intersections: list[Intersection],
         node_ids: list[int | None],
     ) -> list[Intersection]:
         """Overpass APIで公道上の交差点のみを抽出する。失敗時はフィルタなしで返す。"""
-        # ノードIDが取れた交差点のみフィルタ対象
         known = [(isec, nid) for isec, nid in zip(intersections, node_ids) if nid]
         unknown = [isec for isec, nid in zip(intersections, node_ids) if not nid]
 
@@ -155,13 +183,13 @@ class OsrmGateway:
             logger.info("公道フィルタ: OSMノードID取得不可 — スキップ")
             return intersections
 
+        all_nids = [nid for _, nid in known]
+
         try:
             t0 = time.monotonic()
-            public_node_set = await self._query_public_road_nodes(
-                [nid for _, nid in known],
-            )
+            public_node_set = await self._resolve_public_nodes(client, all_nids)
             elapsed = time.monotonic() - t0
-            logger.info("Overpassクエリ: %.1f秒", elapsed)
+            logger.info("公道判定: %.2f秒", elapsed)
         except Exception:
             logger.warning(
                 "Overpass APIクエリ失敗 — フィルタなしで全交差点を返します",
@@ -171,9 +199,7 @@ class OsrmGateway:
 
         before = len(intersections)
         filtered = [isec for isec, nid in known if nid in public_node_set]
-        # ノードID不明の交差点も残す（安全側に倒す）
         filtered.extend(unknown)
-        # 連番を振り直す
         result = [
             Intersection(index=i, lat=f.lat, lng=f.lng, num_roads=f.num_roads)
             for i, f in enumerate(filtered)
@@ -184,29 +210,70 @@ class OsrmGateway:
         )
         return result
 
+    async def _resolve_public_nodes(
+        self,
+        client: httpx.AsyncClient,
+        node_ids: list[int],
+    ) -> set[int]:
+        """キャッシュ優先でノードの公道判定を行う。未キャッシュ分のみOverpassに問い合わせ。"""
+        public: set[int] = set()
+        uncached: list[int] = []
+
+        for nid in node_ids:
+            if nid in self._node_cache:
+                if self._node_cache[nid]:
+                    public.add(nid)
+            else:
+                uncached.append(nid)
+
+        if not uncached:
+            logger.info(
+                "公道キャッシュ: %d/%d ヒット (Overpassスキップ)",
+                len(node_ids), len(node_ids),
+            )
+            return public
+
+        logger.info(
+            "公道キャッシュ: %d/%d ヒット, %d 件をOverpassに問い合わせ",
+            len(node_ids) - len(uncached), len(node_ids), len(uncached),
+        )
+
+        queried_public = await self._query_public_road_nodes(client, uncached)
+
+        # キャッシュ更新
+        for nid in uncached:
+            self._node_cache[nid] = nid in queried_public
+        # キャッシュサイズ制限（古いものから削除）
+        if len(self._node_cache) > _NODE_CACHE_MAX:
+            excess = len(self._node_cache) - _NODE_CACHE_MAX
+            keys = list(self._node_cache.keys())[:excess]
+            for k in keys:
+                del self._node_cache[k]
+
+        return public | queried_public
+
     async def _query_public_road_nodes(
         self,
+        client: httpx.AsyncClient,
         node_ids: list[int],
     ) -> set[int]:
         """指定OSMノードのうち公道wayに属するもののIDセットを返す。"""
         id_str = ",".join(str(n) for n in node_ids)
-        highway_regex = "|".join(PUBLIC_ROAD_TYPES)
+        # out skel qt: タグ不要（フィルタ済み）、quadtileソートで高速化
         query = (
             f'[out:json][timeout:10];'
             f'node(id:{id_str})->.isec;'
-            f'way(bn.isec)["highway"~"^({highway_regex})$"];'
-            f'out body;'
+            f'way(bn.isec)["highway"~"^({_HIGHWAY_REGEX})$"];'
+            f'out skel qt;'
         )
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                self._overpass_url,
-                data={"data": query},
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await client.post(
+            self._overpass_url,
+            data={"data": query},
+        )
+        resp.raise_for_status()
+        data = resp.json()
 
-        # 返ってきた公道wayに含まれるノードIDを集計
         node_id_set = set(node_ids)
         public_nodes: set[int] = set()
         for element in data.get("elements", []):
