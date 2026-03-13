@@ -60,7 +60,7 @@ export function ResultPage() {
   if (trip === undefined || gpsPoints === undefined || intersectionResults === undefined) {
     return (
       <div className="min-h-full flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-primary" />
+        <Loader2 size={28} className="animate-spin text-primary" />
       </div>
     )
   }
@@ -69,8 +69,8 @@ export function ResultPage() {
   if (!trip) {
     return (
       <div className="min-h-full flex flex-col items-center justify-center px-4">
-        <p className="text-gray-500 mb-4">走行データが見つかりません</p>
-        <button onClick={() => navigate('/')} className="text-primary font-semibold">
+        <p className="text-navy/40 mb-4">走行データが見つかりません</p>
+        <button onClick={() => navigate('/')} className="text-primary font-semibold text-sm">
           ホームに戻る
         </button>
       </div>
@@ -100,79 +100,72 @@ export function ResultPage() {
       : [35.6812, 139.7671]
 
   return (
-    <div className="min-h-full bg-gray-50">
-      {/* Header */}
-      <div className="bg-white sticky top-0 z-50 flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-        <button onClick={() => navigate('/')} className="p-1">
-          <ArrowLeft size={24} className="text-gray-700" />
+    <div className="min-h-full bg-surface">
+      {/* ヘッダー */}
+      <div className="bg-white/90 backdrop-blur-md sticky top-0 z-50 flex items-center gap-3 px-5 py-3.5 border-b border-navy/[0.06]">
+        <button onClick={() => navigate('/')} className="p-1 -ml-1">
+          <ArrowLeft size={20} className="text-navy/50" />
         </button>
-        <h1 className="text-lg font-bold text-gray-900">走行結果</h1>
+        <div>
+          <h1 className="text-base font-serif font-bold text-navy">走行結果</h1>
+          <p className="text-[11px] text-navy/35 font-grotesk">{formatDate(trip.startedAt)}</p>
+        </div>
+        <div className="ml-auto">
+          {allStopped ? (
+            <span className="flex items-center gap-1 bg-success/10 text-success text-xs font-bold px-2.5 py-1 rounded-lg">
+              <CheckCircle size={12} />
+              全停止
+            </span>
+          ) : missedCount > 0 ? (
+            <span className="flex items-center gap-1 bg-danger/10 text-danger text-xs font-bold font-mono px-2.5 py-1 rounded-lg">
+              <XCircle size={12} />
+              {missedCount}
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      <div className="px-4 py-4 max-w-lg mx-auto">
-        {/* Summary */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">{formatDate(trip.startedAt)}</p>
-            {allStopped ? (
-              <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
-                <CheckCircle size={12} />
-                全交差点停止
-              </span>
-            ) : missedCount > 0 ? (
-              <span className="flex items-center gap-1 bg-red-100 text-danger text-xs font-bold px-2 py-1 rounded-full">
-                <XCircle size={12} />
-                未停止 {missedCount} 箇所
-              </span>
-            ) : null}
+      <div className="px-5 py-5 max-w-lg mx-auto">
+        {/* サマリー */}
+        <div className="flex gap-2 mb-5">
+          <div className="flex-1 bg-white border border-navy/[0.06] rounded-xl p-3.5 text-center">
+            <p className="text-[10px] text-navy/35 font-grotesk tracking-wider">TIME</p>
+            <p className="text-lg font-mono font-bold text-navy mt-0.5">
+              {trip.endedAt ? formatDuration(trip.startedAt, trip.endedAt) : '--'}
+            </p>
           </div>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-xs text-gray-500">走行時間</p>
-              <p className="text-lg font-bold text-gray-900">
-                {trip.endedAt ? formatDuration(trip.startedAt, trip.endedAt) : '--'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">距離</p>
-              <p className="text-lg font-bold text-gray-900">{formatDistance(trip.distanceM)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">一時停止</p>
-              <p
-                className={`text-lg font-bold ${allStopped ? 'text-success' : missedCount > 0 ? 'text-danger' : 'text-gray-900'}`}
-              >
-                {stoppedCount}/{totalCount}
-              </p>
-            </div>
+          <div className="flex-1 bg-white border border-navy/[0.06] rounded-xl p-3.5 text-center">
+            <p className="text-[10px] text-navy/35 font-grotesk tracking-wider">DIST</p>
+            <p className="text-lg font-mono font-bold text-navy mt-0.5">{formatDistance(trip.distanceM)}</p>
+          </div>
+          <div className={`flex-1 border rounded-xl p-3.5 text-center ${
+            allStopped
+              ? 'bg-success/5 border-success/20'
+              : missedCount > 0
+                ? 'bg-danger/5 border-danger/20'
+                : 'bg-white border-navy/[0.06]'
+          }`}>
+            <p className="text-[10px] text-navy/35 font-grotesk tracking-wider">STOPS</p>
+            <p className={`text-lg font-mono font-bold mt-0.5 ${allStopped ? 'text-success' : missedCount > 0 ? 'text-danger' : 'text-navy'}`}>
+              {stoppedCount}/{totalCount}
+            </p>
           </div>
         </div>
 
-        {/* GPS stats */}
-        {gpsPoints.length > 0 && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-            <p className="text-xs text-gray-500 mb-1">GPSポイント数</p>
-            <p className="text-sm font-semibold text-gray-900">{gpsPoints.length} 点記録</p>
-          </div>
-        )}
-
-        {/* Map */}
+        {/* 地図 */}
         {hasRoute && (
-          <div className="bg-white rounded-2xl overflow-hidden shadow-sm mb-4">
-            <MapContainer center={center} zoom={15} style={{ height: 300 }} scrollWheelZoom={false}>
+          <div className="rounded-xl overflow-hidden border border-navy/[0.06] mb-5">
+            <MapContainer center={center} zoom={15} style={{ height: 280 }} scrollWheelZoom={false}>
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {/* Planned route (light) */}
               {plannedRoute.length >= 2 && (
                 <Polyline positions={plannedRoute} color="#93c5fd" weight={6} opacity={0.5} />
               )}
-              {/* Actual GPS route */}
               {gpsRoute.length >= 2 && (
-                <Polyline positions={gpsRoute} color="#2563eb" weight={4} />
+                <Polyline positions={gpsRoute} color="#1a56db" weight={4} />
               )}
-              {/* Intersection markers — green=stopped, red=missed */}
               {intersectionResults?.map((r) => (
                 <Marker
                   key={r.id}
@@ -192,7 +185,6 @@ export function ResultPage() {
                   </Popup>
                 </Marker>
               ))}
-              {/* Start/end markers */}
               {gpsRoute.length >= 2 && (
                 <>
                   <Marker position={gpsRoute[0]} icon={defaultIcon}>
@@ -208,40 +200,40 @@ export function ResultPage() {
         )}
 
         {!hasRoute && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 text-center">
-            <p className="text-sm text-gray-400">GPSデータがありません</p>
+          <div className="border-2 border-dashed border-navy/10 rounded-xl p-8 text-center mb-5">
+            <p className="text-sm text-navy/30">GPSデータがありません</p>
           </div>
         )}
 
-        {/* Intersection results list */}
+        {/* 交差点結果リスト */}
         {totalCount > 0 && (
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-gray-500 mb-3">交差点一時停止チェック</h2>
-            <div className="space-y-2">
+          <div className="mb-5">
+            <h2 className="text-sm font-serif font-semibold text-navy/60 mb-3">交差点チェック</h2>
+            <div className="space-y-1.5">
               {intersectionResults?.map((r) => (
                 <div
                   key={r.id}
-                  className={`bg-white rounded-xl p-3 shadow-sm flex items-center gap-3 ${
-                    r.stopped ? 'border-l-4 border-green-500' : 'border-l-4 border-red-500'
+                  className={`bg-white border rounded-lg px-3.5 py-3 flex items-center gap-3 ${
+                    r.stopped ? 'border-success/20' : 'border-danger/20'
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    r.stopped ? 'bg-green-100' : 'bg-red-100'
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    r.stopped ? 'bg-success/10' : 'bg-danger/10'
                   }`}>
                     {r.stopped ? (
-                      <CheckCircle size={16} className="text-green-600" />
+                      <CheckCircle size={14} className="text-success" />
                     ) : (
-                      <XCircle size={16} className="text-red-600" />
+                      <XCircle size={14} className="text-danger" />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-navy">
                       交差点 #{r.index + 1}
-                      <span className="text-gray-400 font-normal ml-1">({r.numRoads}差路)</span>
+                      <span className="text-navy/30 font-normal text-xs ml-1.5">({r.numRoads}差路)</span>
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {r.stopped ? '一時停止済み' : '未停止'}
-                      {r.minSpeedKmh != null && ` — 最低速度 ${r.minSpeedKmh.toFixed(1)} km/h`}
+                    <p className="text-xs text-navy/40 mt-0.5 font-grotesk">
+                      {r.stopped ? 'STOPPED' : 'MISSED'}
+                      {r.minSpeedKmh != null && ` — ${r.minSpeedKmh.toFixed(1)} km/h`}
                     </p>
                   </div>
                 </div>
@@ -250,27 +242,27 @@ export function ResultPage() {
           </div>
         )}
 
-        {/* Success/failure summary */}
+        {/* 成功/失敗サマリー */}
         {allStopped && totalCount > 0 ? (
-          <div className="text-center py-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl text-success font-bold">OK</span>
+          <div className="text-center py-6 mb-2">
+            <div className="w-14 h-14 bg-success/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <CheckCircle size={28} className="text-success" />
             </div>
-            <p className="text-gray-900 font-bold">全交差点で一時停止できました</p>
-            <p className="text-sm text-gray-500">安全な走行ができました</p>
+            <p className="text-navy font-serif font-bold text-lg">全交差点で一時停止できました</p>
+            <p className="text-sm text-navy/40 mt-1">安全な走行ができました</p>
           </div>
         ) : totalCount === 0 ? (
-          <div className="text-center py-6">
-            <p className="text-gray-500 text-sm">交差点データがありません</p>
+          <div className="text-center py-6 mb-2">
+            <p className="text-navy/30 text-sm">交差点データがありません</p>
           </div>
         ) : null}
 
-        {/* Back to home */}
+        {/* ホームに戻る */}
         <button
           onClick={() => navigate('/')}
-          className="w-full mt-4 mb-4 bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 transition active:bg-primary/80"
+          className="w-full mb-4 bg-navy text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition active:bg-navy-light font-grotesk tracking-wide"
         >
-          <Home size={18} />
+          <Home size={16} />
           ホームに戻る
         </button>
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents } from 'react-leaflet'
 import { icon } from 'leaflet'
-import { MapPin, Square, AlertTriangle, Navigation, Search, Loader2, CheckCircle, ShieldCheck } from 'lucide-react'
+import { MapPin, Square, AlertTriangle, Navigation, Search, Loader2, CheckCircle, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { useRideStore, type RouteData } from '../stores/rideStore'
 import { useGpsTracker } from '../hooks/useGpsTracker'
 import { useWakeLock } from '../hooks/useWakeLock'
@@ -270,37 +270,44 @@ export function RidingPage() {
         : [35.6812, 139.7671]
 
     return (
-      <div className="h-full bg-gray-50 flex flex-col">
-        {/* Header */}
-        <div className="bg-white px-4 py-3 border-b border-gray-100">
-          <h1 className="text-lg font-bold text-gray-900">目的地を設定</h1>
-          <p className="text-xs text-gray-500 mt-0.5">住所検索または地図をタップして選択</p>
+      <div className="h-full bg-surface flex flex-col">
+        {/* ヘッダー */}
+        <div className="bg-white/90 backdrop-blur-md px-5 py-3.5 border-b border-navy/[0.06]">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="p-1 -ml-1">
+              <ArrowLeft size={20} className="text-navy/50" />
+            </button>
+            <div>
+              <h1 className="text-base font-serif font-bold text-navy">目的地を設定</h1>
+              <p className="text-[11px] text-navy/35">住所検索または地図をタップ</p>
+            </div>
+          </div>
         </div>
 
-        {/* Search bar */}
-        <div className="bg-white px-4 py-3 border-b border-gray-100">
+        {/* 検索バー */}
+        <div className="bg-white/90 backdrop-blur-md px-5 py-3 border-b border-navy/[0.06]">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy/25" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="住所を検索..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface rounded-lg text-sm border border-navy/[0.08] focus:outline-none focus:border-primary/40 transition"
             />
             {isSearching && (
-              <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />
+              <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-navy/30" />
             )}
           </div>
 
-          {/* Search results */}
+          {/* 検索結果 */}
           {searchResults.length > 0 && (
-            <div className="mt-2 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-lg max-h-48 overflow-y-auto">
+            <div className="mt-2 bg-white border border-navy/10 rounded-lg overflow-hidden shadow-lg max-h-48 overflow-y-auto">
               {searchResults.map((r, i) => (
                 <button
                   key={i}
                   onClick={() => handleSelectSearchResult(r)}
-                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-surface border-b border-navy/[0.04] last:border-0 text-navy/80"
                 >
                   {r.display_name}
                 </button>
@@ -309,7 +316,7 @@ export function RidingPage() {
           )}
         </div>
 
-        {/* Map */}
+        {/* 地図 */}
         <div className="flex-1 relative">
           <MapContainer center={mapCenter} zoom={15} style={{ height: '100%' }} scrollWheelZoom>
             <TileLayer
@@ -327,15 +334,13 @@ export function RidingPage() {
                 <Popup>{destinationName ?? '目的地'}</Popup>
               </Marker>
             )}
-            {/* Show route preview */}
             {route && (
               <Polyline
                 positions={route.geometry.map((c) => [c[0], c[1]] as [number, number])}
-                color="#2563eb"
+                color="#1a56db"
                 weight={4}
               />
             )}
-            {/* Show intersection markers on preview */}
             {route?.intersections.map((ix) => (
               <Marker key={ix.index} position={[ix.lat, ix.lng]} icon={intersectionPendingIcon}>
                 <Popup>交差点 #{ix.index + 1} ({ix.num_roads}差路)</Popup>
@@ -344,35 +349,35 @@ export function RidingPage() {
           </MapContainer>
         </div>
 
-        {/* Bottom panel */}
-        <div className="bg-white px-4 pt-3 pb-6 border-t border-gray-200 safe-area-bottom">
+        {/* ボトムパネル */}
+        <div className="bg-white/95 backdrop-blur-md px-5 pt-3 pb-6 border-t border-navy/[0.06] safe-area-bottom">
           {destinationLat != null && destinationLng != null && (
-            <div className="mb-3 flex items-center gap-2 text-sm text-gray-700">
-              <Navigation size={14} className="text-primary" />
+            <div className="mb-3 flex items-center gap-2 text-sm text-navy/70">
+              <Navigation size={13} className="text-primary flex-shrink-0" />
               <span className="truncate">{destinationName ?? `${destinationLat.toFixed(4)}, ${destinationLng.toFixed(4)}`}</span>
             </div>
           )}
 
           {routeError && (
-            <div className="mb-3 bg-red-50 text-red-600 text-xs rounded-lg px-3 py-2 flex items-center gap-2">
-              <AlertTriangle size={14} />
+            <div className="mb-3 bg-danger/5 border border-danger/20 text-danger text-xs rounded-lg px-3 py-2.5 flex items-center gap-2">
+              <AlertTriangle size={13} />
               {routeError}
             </div>
           )}
 
           {route && (
-            <div className="mb-3 grid grid-cols-3 gap-2 text-center text-sm">
-              <div>
-                <p className="text-gray-500 text-xs">距離</p>
-                <p className="font-bold">{(route.distance_m / 1000).toFixed(1)} km</p>
+            <div className="mb-3 flex gap-2">
+              <div className="flex-1 bg-surface rounded-lg py-2 text-center">
+                <p className="text-[10px] text-navy/35 font-grotesk tracking-wider">DIST</p>
+                <p className="font-mono font-bold text-navy text-sm">{(route.distance_m / 1000).toFixed(1)} km</p>
               </div>
-              <div>
-                <p className="text-gray-500 text-xs">所要時間</p>
-                <p className="font-bold">{Math.round(route.duration_s / 60)}分</p>
+              <div className="flex-1 bg-surface rounded-lg py-2 text-center">
+                <p className="text-[10px] text-navy/35 font-grotesk tracking-wider">TIME</p>
+                <p className="font-mono font-bold text-navy text-sm">{Math.round(route.duration_s / 60)}分</p>
               </div>
-              <div>
-                <p className="text-gray-500 text-xs">交差点</p>
-                <p className="font-bold">{route.intersections.length}箇所</p>
+              <div className="flex-1 bg-accent/10 border border-accent/20 rounded-lg py-2 text-center">
+                <p className="text-[10px] text-accent-dark font-grotesk tracking-wider">STOPS</p>
+                <p className="font-mono font-bold text-accent-dark text-sm">{route.intersections.length}</p>
               </div>
             </div>
           )}
@@ -381,16 +386,16 @@ export function RidingPage() {
             <button
               onClick={handleFetchRoute}
               disabled={destinationLat == null || isLoadingRoute || !myLocation}
-              className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition active:bg-primary/80 disabled:opacity-50"
+              className="w-full bg-navy text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition active:bg-navy-light disabled:opacity-40 font-grotesk tracking-wide"
             >
               {isLoadingRoute ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
+                  <Loader2 size={17} className="animate-spin" />
                   ルート取得中...
                 </>
               ) : (
                 <>
-                  <Navigation size={18} />
+                  <Navigation size={17} />
                   ルートを取得
                 </>
               )}
@@ -398,9 +403,9 @@ export function RidingPage() {
           ) : (
             <button
               onClick={() => setPhase('confirm')}
-              className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition active:bg-primary/80"
+              className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition active:bg-primary-dark"
             >
-              <ShieldCheck size={18} />
+              <ShieldCheck size={17} />
               おうちの人と確認する
             </button>
           )}
@@ -412,78 +417,82 @@ export function RidingPage() {
   // ===== フェーズ2: 保護者確認 =====
   if (phase === 'confirm' && route) {
     return (
-      <div className="h-full bg-gray-50 flex flex-col">
-        {/* Header */}
-        <div className="bg-white px-4 py-3 border-b border-gray-100">
-          <h1 className="text-lg font-bold text-gray-900">おうちの人といっしょに確認しよう</h1>
-          <p className="text-xs text-gray-500 mt-0.5">走り出すまえに、いっしょにチェックしてね</p>
+      <div className="h-full bg-surface flex flex-col">
+        {/* ヘッダー */}
+        <div className="bg-white/90 backdrop-blur-md px-5 py-4 border-b border-navy/[0.06]">
+          <h1 className="text-lg font-serif font-bold text-navy">
+            おうちの人と確認しよう
+          </h1>
+          <p className="text-xs text-navy/35 mt-0.5">走り出すまえに、いっしょにチェックしてね</p>
         </div>
 
-        {/* Confirmation content */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {/* Route summary card */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        {/* 確認内容 */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+          {/* ルートサマリー */}
+          <div className="bg-white border border-navy/[0.06] rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Navigation size={16} className="text-primary" />
-              <span className="text-sm font-bold text-gray-900 truncate">
+              <Navigation size={14} className="text-primary" />
+              <span className="text-sm font-semibold text-navy truncate">
                 {destinationName ?? `${destinationLat!.toFixed(4)}, ${destinationLng!.toFixed(4)}`}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="bg-gray-50 rounded-xl py-2">
-                <p className="text-gray-500 text-xs">きょり</p>
-                <p className="text-lg font-bold text-gray-900">{(route.distance_m / 1000).toFixed(1)} km</p>
+            <div className="flex gap-2">
+              <div className="flex-1 bg-surface rounded-lg py-2.5 text-center">
+                <p className="text-[10px] text-navy/35 font-grotesk">DISTANCE</p>
+                <p className="font-mono font-bold text-navy">{(route.distance_m / 1000).toFixed(1)} km</p>
               </div>
-              <div className="bg-gray-50 rounded-xl py-2">
-                <p className="text-gray-500 text-xs">じかん</p>
-                <p className="text-lg font-bold text-gray-900">やく {Math.round(route.duration_s / 60)}分</p>
+              <div className="flex-1 bg-surface rounded-lg py-2.5 text-center">
+                <p className="text-[10px] text-navy/35 font-grotesk">TIME</p>
+                <p className="font-mono font-bold text-navy">約{Math.round(route.duration_s / 60)}分</p>
               </div>
             </div>
           </div>
 
-          {/* Intersection count highlight */}
-          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-center">
-            <p className="text-amber-700 text-sm font-bold mb-1">この道には</p>
-            <p className="text-5xl font-black text-amber-600 my-2">{route.intersections.length}</p>
-            <p className="text-amber-700 text-sm font-bold">つの交差点があるよ</p>
-            <p className="text-amber-600 text-xs mt-2">ぜんぶの交差点でいちどとまろうね！</p>
+          {/* 交差点数ハイライト */}
+          <div className="bg-accent/[0.08] border-2 border-accent/25 rounded-xl p-6 text-center">
+            <p className="text-accent-dark text-sm font-serif font-semibold mb-2">この道には</p>
+            <p className="text-6xl font-mono font-black text-accent leading-none my-3">
+              {route.intersections.length}
+            </p>
+            <p className="text-accent-dark text-sm font-serif font-semibold">つの交差点があるよ</p>
+            <p className="text-accent-dark/60 text-xs mt-3">ぜんぶの交差点でいちどとまろうね！</p>
           </div>
 
-          {/* Parent checklist */}
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck size={18} className="text-blue-600" />
-              <p className="text-sm font-bold text-blue-800">保護者の方へ</p>
+          {/* 保護者チェックリスト */}
+          <div className="border-l-[3px] border-primary pl-4 py-1">
+            <div className="flex items-center gap-2 mb-2.5">
+              <ShieldCheck size={16} className="text-primary" />
+              <p className="text-sm font-serif font-bold text-navy">保護者の方へ</p>
             </div>
-            <ul className="space-y-2 text-sm text-blue-700">
+            <ul className="space-y-2 text-sm text-navy/65">
               <li className="flex items-start gap-2">
-                <span className="mt-0.5">•</span>
-                <span>経路上に <b>{route.intersections.length}箇所</b> の交差点があります</span>
+                <span className="text-primary mt-0.5 font-mono text-xs">01</span>
+                <span>経路上に <b className="text-navy">{route.intersections.length}箇所</b> の交差点があります</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5">•</span>
+                <span className="text-primary mt-0.5 font-mono text-xs">02</span>
                 <span>すべての交差点で一時停止するようお子さまに声かけをお願いします</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5">•</span>
+                <span className="text-primary mt-0.5 font-mono text-xs">03</span>
                 <span>走行中はスマートフォンをさわらないよう伝えてください</span>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom buttons */}
-        <div className="bg-white px-4 pt-3 pb-6 border-t border-gray-200 safe-area-bottom space-y-2">
+        {/* ボトムボタン */}
+        <div className="bg-white/95 backdrop-blur-md px-5 pt-3 pb-6 border-t border-navy/[0.06] safe-area-bottom space-y-2">
           <button
             onClick={handleStartRiding}
-            className="w-full bg-success text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition active:bg-success/80"
+            className="w-full bg-success text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition active:bg-success-dark"
           >
-            <CheckCircle size={18} />
+            <CheckCircle size={17} />
             かくにんできたら走行開始！
           </button>
           <button
             onClick={() => setPhase('setup')}
-            className="w-full text-gray-500 text-sm py-2"
+            className="w-full text-navy/35 text-sm py-2"
           >
             もどる
           </button>
@@ -494,8 +503,8 @@ export function RidingPage() {
 
   // ===== フェーズ3: 走行中 =====
   return (
-    <div className="h-full bg-gray-900 flex flex-col relative overflow-hidden">
-      {/* Map view during riding */}
+    <div className="h-full bg-navy flex flex-col relative overflow-hidden">
+      {/* 走行中の地図表示 */}
       <div className="flex-1 relative overflow-hidden">
         <MapContainer
           center={currentLat != null ? [currentLat, currentLng!] : [35.6812, 139.7671]}
@@ -507,16 +516,14 @@ export function RidingPage() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {/* Route line */}
           {route && (
             <Polyline
               positions={route.geometry.map((c) => [c[0], c[1]] as [number, number])}
-              color="#2563eb"
+              color="#1a56db"
               weight={4}
               opacity={0.7}
             />
           )}
-          {/* Intersection markers */}
           {route?.intersections.map((ix) => (
             <Marker
               key={ix.index}
@@ -529,13 +536,11 @@ export function RidingPage() {
               </Popup>
             </Marker>
           ))}
-          {/* Current position */}
           {currentLat != null && (
             <Marker position={[currentLat, currentLng!]} icon={defaultIcon}>
               <Popup>現在地</Popup>
             </Marker>
           )}
-          {/* Destination */}
           {destinationLat != null && destinationLng != null && (
             <Marker position={[destinationLat, destinationLng]} icon={destinationIcon}>
               <Popup>目的地</Popup>
@@ -543,71 +548,73 @@ export function RidingPage() {
           )}
         </MapContainer>
 
-        {/* Timer overlay */}
-        <div className="absolute top-4 right-4 bg-black/50 rounded-full px-3 py-1.5 z-[1000]">
-          <span className="text-white text-sm font-mono">{formatTime(elapsedSeconds)}</span>
+        {/* タイマーオーバーレイ */}
+        <div className="absolute top-4 right-4 bg-navy/60 backdrop-blur-sm rounded-lg px-3 py-1.5 z-[1000]">
+          <span className="text-white text-sm font-mono font-medium">{formatTime(elapsedSeconds)}</span>
         </div>
 
-        {/* Wake Lock badge */}
+        {/* Wake Lockバッジ */}
         {wakeLock.isActive && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-500/80 rounded-full px-3 py-1 z-[1000]">
-            <span className="text-white text-[10px] font-bold">画面ON維持中</span>
+          <div className="absolute top-4 left-4 bg-accent/80 backdrop-blur-sm rounded-lg px-2.5 py-1 z-[1000]">
+            <span className="text-white text-[10px] font-bold font-grotesk tracking-wide">SCREEN ON</span>
           </div>
         )}
 
-        {/* GPS error */}
+        {/* GPSエラー */}
         {gps.error && (
           <div className="absolute top-14 inset-x-4 z-[1000]">
-            <div className="bg-red-600/90 text-white text-xs rounded-lg px-3 py-2 flex items-center gap-2">
-              <AlertTriangle size={14} />
+            <div className="bg-danger/90 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2.5 flex items-center gap-2">
+              <AlertTriangle size={13} />
               {gps.error}
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom HUD */}
-      <div className="bg-black/70 backdrop-blur-sm px-4 pt-4 pb-6 safe-area-bottom">
+      {/* ボトムHUD */}
+      <div className="bg-navy/90 backdrop-blur-md px-5 pt-4 pb-6 safe-area-bottom border-t border-white/[0.06]">
         <div className="flex justify-around mb-4">
           <div className="text-center">
-            <p className="text-gray-400 text-xs">速度</p>
-            <p className="text-white text-2xl font-bold font-mono">{currentSpeed.toFixed(1)}</p>
-            <p className="text-gray-400 text-xs">km/h</p>
+            <p className="text-white/30 text-[10px] font-grotesk tracking-widest mb-1">SPEED</p>
+            <p className="text-white text-3xl font-mono font-bold leading-none">{currentSpeed.toFixed(1)}</p>
+            <p className="text-white/25 text-[10px] font-grotesk mt-1">km/h</p>
           </div>
           <div className="text-center">
-            <p className="text-gray-400 text-xs">GPS精度</p>
+            <p className="text-white/30 text-[10px] font-grotesk tracking-widest mb-1">GPS</p>
             <div className="flex items-center justify-center gap-1">
               <MapPin
-                size={14}
+                size={12}
                 className={
                   currentLat == null
-                    ? 'text-gray-500'
+                    ? 'text-white/20'
                     : currentAccuracy < 10
                       ? 'text-green-400'
-                      : 'text-yellow-400'
+                      : 'text-accent'
                 }
               />
-              <p className="text-white text-2xl font-bold font-mono">
+              <p className="text-white text-3xl font-mono font-bold leading-none">
                 {currentLat == null ? '--' : currentAccuracy.toFixed(0)}
               </p>
             </div>
-            <p className="text-gray-400 text-xs">m</p>
+            <p className="text-white/25 text-[10px] font-grotesk mt-1">m</p>
           </div>
           <div className="text-center">
-            <p className="text-gray-400 text-xs">一時停止</p>
-            <p className="text-white text-2xl font-bold font-mono">
-              {stoppedIntersections}/{totalIntersections}
+            <p className="text-white/30 text-[10px] font-grotesk tracking-widest mb-1">STOPS</p>
+            <p className="text-white text-3xl font-mono font-bold leading-none">
+              <span className="text-success">{stoppedIntersections}</span>
+              <span className="text-white/25 text-lg mx-0.5">/</span>
+              <span>{totalIntersections}</span>
             </p>
-            <p className="text-gray-400 text-xs">箇所</p>
+            <p className="text-white/25 text-[10px] font-grotesk mt-1">箇所</p>
           </div>
         </div>
 
         <button
           onClick={handleEnd}
           disabled={!isRiding}
-          className="w-full bg-danger active:bg-danger-dark text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition disabled:opacity-50"
+          className="w-full bg-danger active:bg-danger-dark text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-40 font-grotesk tracking-wide"
         >
-          <Square size={20} fill="currentColor" />
+          <Square size={16} fill="currentColor" />
           走行終了
         </button>
       </div>
