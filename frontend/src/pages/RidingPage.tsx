@@ -195,14 +195,21 @@ export function RidingPage() {
         }),
       })
 
-      if (!tripRes.ok) throw new Error('Trip creation failed')
+      if (!tripRes.ok) {
+        const errBody = await tripRes.json().catch(() => null)
+        throw new Error(errBody?.detail ?? `トリップ作成に失敗しました (HTTP ${tripRes.status})`)
+      }
 
       const routeRes = await apiFetch(
         `/api/trips/${tripIdNew}/route?origin_lat=${originLat}&origin_lng=${originLng}`,
         { method: 'POST' },
       )
 
-      if (!routeRes.ok) throw new Error('Route planning failed')
+      if (!routeRes.ok) {
+        const errBody = await routeRes.json().catch(() => null)
+        const detail = errBody?.detail ?? `ルート取得に失敗しました (HTTP ${routeRes.status})`
+        throw new Error(detail)
+      }
 
       const tripData = await routeRes.json()
       const routeData: RouteData = tripData.route

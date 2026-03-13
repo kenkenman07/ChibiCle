@@ -1,8 +1,16 @@
 """OSRMルーティングゲートウェイ — 自転車ルートの取得と交差点の抽出。"""
 
+import logging
+
 import httpx
 
 from app.domain.models import Intersection, Route
+
+logger = logging.getLogger(__name__)
+
+
+class OsrmRoutingError(Exception):
+    """OSRMルーティングに失敗した場合のエラー。"""
 
 
 class OsrmGateway:
@@ -24,10 +32,27 @@ class OsrmGateway:
             "?steps=true&geometries=geojson&overview=full"
         )
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.TimeoutException:
+            logger.error("OSRMリクエストがタイムアウト: %s", url)
+            raise OsrmRoutingError("ルーティングサーバーへの接続がタイムアウトしました")
+        except httpx.HTTPStatusError as e:
+            logger.error("OSRM HTTPエラー %s: %s", e.response.status_code, url)
+            raise OsrmRoutingError(
+                f"ルーティングサーバーがエラーを返しました (HTTP {e.response.status_code})"
+            )
+        except httpx.RequestError as e:
+            logger.error("OSRMリクエストエラー: %s", e)
+            raise OsrmRoutingError("ルーティングサーバーに接続できません")
+
+        if data.get("code") != "Ok":
+            msg = data.get("message", "不明なエラー")
+            logger.error("OSRMルーティング失敗: %s", msg)
+            raise OsrmRoutingError(f"ルートが見つかりません: {msg}")
 
         osrm_route = data["routes"][0]
 

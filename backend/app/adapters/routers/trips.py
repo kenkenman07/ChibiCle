@@ -77,6 +77,8 @@ async def plan_route(
     origin_lng: float | None = None,
 ) -> TripOut:
     """トリップ作成後、ユーザーのGPS位置情報を取得してからルートを計画。"""
+    from app.adapters.osrm_gateway import OsrmRoutingError
+
     repo = request.app.state.repo
     route_usecase = request.app.state.route_usecase
 
@@ -88,11 +90,14 @@ async def plan_route(
     if origin_lat is None or origin_lng is None:
         raise HTTPException(400, "Origin coordinates required")
 
-    await route_usecase.plan(
-        trip_id=trip_id,
-        origin=(origin_lat, origin_lng),
-        destination=(trip.destination_lat, trip.destination_lng),
-    )
+    try:
+        await route_usecase.plan(
+            trip_id=trip_id,
+            origin=(origin_lat, origin_lng),
+            destination=(trip.destination_lat, trip.destination_lng),
+        )
+    except OsrmRoutingError as e:
+        raise HTTPException(502, str(e))
 
     return _to_out(trip, repo)
 
