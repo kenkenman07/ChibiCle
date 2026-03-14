@@ -26,7 +26,11 @@ export default function BottomNav() {
       </div>
 
       <NavItem icon={<ShieldCheck className="w-6 h-6" />} active={false} />
-      <NavItem icon={<User className="w-6 h-6" />} active={false} />
+      <NavItem
+        icon={<User className="w-6 h-6" />}
+        active={false}
+        onClick={() => navigate("/profile")}
+      />
     </div>
   );
 }

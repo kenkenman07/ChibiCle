@@ -123,14 +123,16 @@ export default function Dashboard() {
   };
 
   return (
+    // 【修正点】flex flex-col を追加
     <motion.div
       variants={pageVariants}
       initial="initial"
       animate="in"
       exit="out"
-      className="flex-1 overflow-y-auto pb-24"
+      className="flex-1 overflow-y-auto bg-[#126f50] flex flex-col"
     >
-      <div className="bg-[#126f50] pt-12 pb-16 px-6 rounded-b-[2.5rem] relative overflow-hidden">
+      {/* ヘッダーセクション */}
+      <div className="bg-[#126f50] pt-12 pb-20 px-6 relative overflow-hidden flex-none">
         <div className="absolute top-0 right-0 opacity-20 transform translate-x-10 -translate-y-10">
           <GlobeIllustration />
         </div>
@@ -153,9 +155,11 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <div className="px-6 -mt-8 relative z-20">
-        <h2 className="text-xl font-bold mb-1">今月の記録</h2>
-        <p className="text-sm text-gray-400 mb-4">月間データダッシュボード</p>
+      {/* メインコンテンツ */}
+      {/* 【修正点】min-h-screen を削除し、flex-1 に変更 */}
+      <div className="bg-[#f4f7f6] px-6 pt-8 pb-32 rounded-t-[2.5rem] -mt-10 relative z-20 flex-1 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+        <h2 className="text-xl font-bold text-gray-800 mb-1">今月の記録</h2>
+        <p className="text-sm text-gray-500 mb-6">月間データダッシュボード</p>
 
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-[#ff8652] rounded-3xl p-5 text-white shadow-lg shadow-orange-200/50 relative overflow-hidden">
