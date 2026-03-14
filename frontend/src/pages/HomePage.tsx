@@ -1,25 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Bike, ChevronRight, Octagon } from 'lucide-react'
-import { db } from '../lib/db'
+import { useTripHistory } from '../hooks/useTripHistory'
 import { formatDate, formatDuration, formatDistance } from '../lib/mockData'
 
 export function HomePage() {
   const navigate = useNavigate()
+  const trips = useTripHistory()
 
-  const tripsWithCounts = useLiveQuery(async () => {
-    const allTrips = await db.trips.orderBy('startedAt').reverse().toArray()
-    return Promise.all(
-      allTrips.map(async (t) => {
-        const results = await db.intersectionResults.where('tripId').equals(t.id).toArray()
-        const total = results.length
-        const stopped = results.filter((r) => r.stopped).length
-        return { ...t, totalIntersections: total, missedCount: total - stopped }
-      }),
-    )
-  })
-
-  const trips = tripsWithCounts ?? []
   const recentTrips = trips.slice(0, 3)
   const monthlyRides = trips.length
   const totalMissed = trips.reduce((sum, t) => sum + t.missedCount, 0)

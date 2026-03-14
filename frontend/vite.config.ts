@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'BlueTicketDriving',
         short_name: 'BTDriving',
-        description: '自転車の交通違反をリアルタイム検知するPWA',
+        description: '自転車の交通違反をリアルタイム検知',
         theme_color: '#2563eb',
         background_color: '#ffffff',
         display: 'standalone',
@@ -27,7 +27,7 @@ export default defineConfig({
           {
             urlPattern: /^https:\/\/[abc]\.tile\.openstreetmap\.org\/.*/i,
             handler: 'CacheFirst',
-            options: {
+            options: {げn
               cacheName: 'osm-tiles',
               expiration: {
                 maxEntries: 500,

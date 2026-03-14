@@ -1,9 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import { icon } from 'leaflet'
 import { ArrowLeft, Loader2, Home, CheckCircle, XCircle } from 'lucide-react'
-import { db } from '../lib/db'
+import { useResultData } from '../hooks/useResultData'
 import { formatDate, formatDuration, formatDistance } from '../lib/mockData'
 import 'leaflet/dist/leaflet.css'
 
@@ -32,32 +31,9 @@ const missedMarker = icon({
 export function ResultPage() {
   const { tripId } = useParams<{ tripId: string }>()
   const navigate = useNavigate()
+  const data = useResultData(tripId)
 
-  const trip = useLiveQuery(() => (tripId ? db.trips.get(tripId) : undefined), [tripId])
-
-  const gpsPoints = useLiveQuery(
-    () =>
-      tripId
-        ? db.gpsPoints.where('tripId').equals(tripId).sortBy('recordedAt')
-        : [],
-    [tripId],
-  )
-
-  const intersectionResults = useLiveQuery(
-    () =>
-      tripId
-        ? db.intersectionResults.where('tripId').equals(tripId).sortBy('index')
-        : [],
-    [tripId],
-  )
-
-  const routeData = useLiveQuery(
-    () => (tripId ? db.routes.get(tripId) : undefined),
-    [tripId],
-  )
-
-  // 読み込み中
-  if (trip === undefined || gpsPoints === undefined || intersectionResults === undefined) {
+  if (data.loading) {
     return (
       <div className="min-h-full flex items-center justify-center">
         <Loader2 size={28} className="animate-spin text-primary" />
@@ -65,7 +41,8 @@ export function ResultPage() {
     )
   }
 
-  // データなし
+  const { trip, gpsPoints, intersectionResults, routeData } = data
+
   if (!trip) {
     return (
       <div className="min-h-full flex flex-col items-center justify-center px-4">
@@ -81,12 +58,11 @@ export function ResultPage() {
   const plannedRoute = routeData?.geometry.map((c) => [c[0], c[1]] as [number, number]) ?? []
   const hasRoute = gpsRoute.length >= 2 || plannedRoute.length >= 2
 
-  const stoppedCount = intersectionResults?.filter((r) => r.stopped).length ?? 0
-  const totalCount = intersectionResults?.length ?? 0
+  const stoppedCount = intersectionResults.filter((r) => r.stopped).length
+  const totalCount = intersectionResults.length
   const missedCount = totalCount - stoppedCount
   const allStopped = totalCount > 0 && missedCount === 0
 
-  // GPSデータから地図の中心を計算
   const center: [number, number] = gpsRoute.length >= 2
     ? [
         gpsPoints.reduce((s, p) => s + p.lat, 0) / gpsPoints.length,
@@ -166,7 +142,7 @@ export function ResultPage() {
               {gpsRoute.length >= 2 && (
                 <Polyline positions={gpsRoute} color="#1a56db" weight={4} />
               )}
-              {intersectionResults?.map((r) => (
+              {intersectionResults.map((r) => (
                 <Marker
                   key={r.id}
                   position={[r.lat, r.lng]}
@@ -210,7 +186,7 @@ export function ResultPage() {
           <div className="mb-5">
             <h2 className="text-sm font-serif font-semibold text-navy/60 mb-3">交差点チェック</h2>
             <div className="space-y-1.5">
-              {intersectionResults?.map((r) => (
+              {intersectionResults.map((r) => (
                 <div
                   key={r.id}
                   className={`bg-white border rounded-lg px-3.5 py-3 flex items-center gap-3 ${
