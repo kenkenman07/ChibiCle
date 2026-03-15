@@ -1,36 +1,3 @@
-// import { BrowserRouter, Route, Routes } from "react-router-dom";
-// import Dashboard from "./pages/Dashboard";
-// import SignInPage from "./pages/SignInPage";
-// import RecordPage from "./pages/RecordPage";
-// import ResultPage from "./pages/ResultPage";
-// import HistoryPage from "./pages/HistoryPage";
-// import Layout from "./Layout";
-// import ProfilePage from "./pages/ProfilePage";
-// import SignIn from "./pages/SignIn";
-
-// function App() {
-//   return (
-//     <>
-//       <BrowserRouter>
-//         <Routes>
-//           <Route path="/signin" element={<SignIn />} />
-
-//           <Route path="/" element={<Layout />}>
-//             <Route index element={<Dashboard />} />
-//             <Route path="/record" element={<RecordPage />} />
-//             <Route path="/result" element={<ResultPage />} />
-//             <Route path="/history" element={<HistoryPage />} />
-//             <Route path="profile" element={<ProfilePage />} />
-//           </Route>
-//         </Routes>
-//       </BrowserRouter>
-//     </>
-//   );
-// }
-
-// export default App;
-
-import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -43,7 +10,7 @@ import Destination from "./pages/Destination";
 import Riding from "./pages/Riding";
 import SignIn from "./pages/SignIn";
 import Result from "./pages/Result";
-import Profile from "./pages/ProfilePage"; // 追加
+import Profile from "./pages/Profile"; // 追加
 import BottomNav from "./components/BottomNav";
 
 function AppContent() {

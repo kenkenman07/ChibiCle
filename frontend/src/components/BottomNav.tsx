@@ -1,20 +1,19 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Home, Calendar, ShieldCheck, User, Bike } from "lucide-react";
+import { Home, User, Bike } from "lucide-react";
 
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
 
   return (
-    <div className="absolute bottom-0 w-full bg-white rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] px-6 py-4 flex justify-between items-center z-50">
+    <div className="absolute bottom-0 w-full bg-white  shadow-[0_-10px_40px_rgba(0,0,0,0.05)] px-18 py-4 flex justify-between items-center z-50">
       <NavItem
         icon={<Home className="w-6 h-6" />}
         active={location.pathname === "/"}
         onClick={() => navigate("/")}
       />
-      <NavItem icon={<Calendar className="w-6 h-6" />} active={false} />
 
       <div className="relative -top-6">
         <button
@@ -25,7 +24,6 @@ export default function BottomNav() {
         </button>
       </div>
 
-      <NavItem icon={<ShieldCheck className="w-6 h-6" />} active={false} />
       <NavItem
         icon={<User className="w-6 h-6" />}
         active={false}

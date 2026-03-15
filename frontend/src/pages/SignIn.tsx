@@ -1,8 +1,10 @@
-import React from "react";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ShieldCheck, Bike } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
+import { useCurrentUserStore } from "../modules/auth/current-user.state";
+import { authRepository } from "../modules/auth/auth.repository";
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -12,6 +14,21 @@ export default function SignIn() {
     in: { opacity: 1, scale: 1 },
     out: { opacity: 0, scale: 1.05 },
   };
+
+  const currentUserStore = useCurrentUserStore();
+
+  useEffect(() => {
+    checkUserSignIn();
+  }, []);
+
+  const checkUserSignIn = async () => {
+    const currentUser = await authRepository.getCurrentUser();
+    if (currentUser != null) {
+      currentUserStore.set(currentUser);
+    }
+  };
+
+  if (currentUserStore.currentUser != null) return <Navigate replace to="/" />;
 
   return (
     <motion.div
