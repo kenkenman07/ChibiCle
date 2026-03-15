@@ -13,7 +13,7 @@
 | HTTPフレームワーク | go-chi/chi v5 |
 | アーキテクチャ | Clean Architecture（domain → usecase → adapter → cmd） |
 | ストレージ | インメモリ（sync.RWMutex による並行安全） |
-| 外部API | OSRM（ルーティング），Overpass（公道判定），Photon（ジオコーディング） |
+| 外部API | OSRM（ルーティング），Overpass（公道判定・信号フィルタ），Photon（ジオコーディング） |
 | 設定管理 | kelseyhightower/envconfig（環境変数，プレフィックス `BTD_`） |
 
 ---
@@ -173,7 +173,7 @@ API: `PATCH /api/trips/{id}/end` — 走行終了時
 1. OSRM Bicycle Route API を呼び出し
 2. GeoJSON [lng, lat] を内部形式 [lat, lng] に変換
 3. bearings >= 3 の交差点を抽出
-4. Overpass API で公道フィルタ
+4. Overpass API で公道フィルタ + 信号付き交差点の除外（1回のクエリで統合処理）
 5. Route + IntersectionResult[] をリポジトリに保存
 
 レスポンス（200 OK）:
@@ -201,7 +201,7 @@ API: `PATCH /api/trips/{id}/end` — 走行終了時
 `geometry` は経路線の座標列．`intersections` の `stopped` は初期値として全て false で返る．
 
 フロントエンドは `route` を以下の3箇所に保存する:
-1. **Zustand ストア** — UI即時反映（地図上のルート線・交差点マーカー）
+1. **Jotai atom** — UI即時反映（地図上のルート線・交差点マーカー）
 2. **IndexedDB `routes` テーブル** — オフライン耐性
 3. **IndexedDB `intersectionResults` テーブル** — 各交差点の判定結果を個別管理
 
@@ -211,7 +211,7 @@ API: `PATCH /api/trips/{id}/end` — 走行終了時
 
 1. **GPS watchPosition**（ブラウザAPI）が約1秒ごとに測位を発火する
 2. 各測位データは2つの経路に同時に流れる:
-   - **Zustand 更新**: 速度・精度・現在地をUIに即時反映する
+   - **atom 更新**: 速度・精度・現在地をUIに即時反映する
    - **IndexedDB 追記**: `synced: false` としてバッファする
 3. **setInterval**（5秒間隔）が Dexie から `synced=false` を全件取得し，`POST /api/gps` にバッチ送信する
 
@@ -264,7 +264,7 @@ API: `PATCH /api/trips/{id}/end` — 走行終了時
 }
 ```
 
-フロントエンドは `intersection_updates` を IndexedDB に差分適用し，Zustand の停止カウントを更新する．
+フロントエンドは `intersection_updates` を IndexedDB に差分適用し，atom の停止カウントを更新する．
 
 #### レスポンス: リルート発生時
 
@@ -279,7 +279,7 @@ API: `PATCH /api/trips/{id}/end` — 走行終了時
 `rerouted: true` の場合，フロントエンドは追加で `GET /api/trips/{id}` を呼び出してルート全体を再取得する．バックエンドはトリップ + 新ルート + 新交差点リストを含むレスポンスを返す．
 
 フロントエンドは:
-1. Zustand の `route` を差し替え
+1. atom の `route` を差し替え
 2. IndexedDB の `routes` を上書き
 3. IndexedDB の `intersectionResults` を全削除 → 新交差点で再作成
 
@@ -347,20 +347,21 @@ API: `PATCH /api/trips/{id}/end` — 走行終了時
 | `intersectionResults` | id (auto) | IntersectionResult | 交差点判定の差分適用先 |
 | `routes` | tripId (string) | Route | ルートのローカルコピー |
 
-### 5.3 フロントエンド（Zustand ストア）
+### 5.3 フロントエンド（Jotai atom）
 
 リアルタイムUI用の揮発性状態．IndexedDB とは別に管理する．
 
-| フィールド | 型 | 更新タイミング |
+| atom | 型 | 更新タイミング |
 |---|---|---|
 | `isRiding` | boolean | startRide / endRide |
 | `tripId` | string \| null | POST /api/trips 成功時 |
 | `currentSpeed` | number | watchPosition のたび |
 | `currentAccuracy` | number | watchPosition のたび |
 | `currentLat/Lng` | number \| null | watchPosition のたび |
-| `route` | RouteData \| null | POST /api/trips/{id}/route 成功時，リルート時 |
-| `totalIntersections` | number | ルート取得時，リルート時 |
-| `stoppedIntersections` | number | POST /api/gps の intersection_updates 反映時 |
+| `route.state` | RouteData \| null | POST /api/trips/{id}/route 成功時，リルート時，stopped=true 反映時 |
+| `score.state` | number | 安全に通れた交差点の累計数 |
+| `coordinateNotSafety` | LatLng[] | stopped=false で min_speed_kmh が記録された交差点座標 |
+| `priorStoppedCount` | number | リルート発生時に prior_stopped_count を保存（累計停止数の引き継ぎ） |
 
 ---
 
@@ -373,10 +374,13 @@ OSRM レスポンスの steps[].intersections[] から:
   1. bearings の要素数 >= 3 のノードを交差点として採用（T字路以上）
   2. 座標を小数点6桁で丸め，重複を排除
   3. annotation.nodes から OSM ノードID を取得
-  4. Overpass API で highway タグを照合し，公道上のノードのみ残す
-     対象タグ: trunk, primary, secondary, tertiary, unclassified,
-              residential, living_street（各 _link を含む）
-  5. ノードID が不明な交差点は安全側に残す
+  4. Overpass API で以下の2つのフィルタを1回の統合クエリで実行:
+     a. 公道フィルタ — highway タグを照合し，公道上のノードのみ残す
+        対象タグ: trunk, primary, secondary, tertiary, unclassified,
+                 residential, living_street（各 _link を含む）
+     b. 信号フィルタ — highway="traffic_signals" タグを持つノードを除外する
+        （信号のある交差点は安全性が高いため判定対象外とする）
+  5. ノードID が不明な交差点は安全側に残す（公道とみなす）
 ```
 
 ### 6.2 一時停止判定（GPSバッチ受信時）
@@ -440,10 +444,26 @@ OSRM レスポンスの steps[].intersections[] から:
 |---|---|
 | エンドポイント | `{BTD_OVERPASS_API_URL}` (POST) |
 | クエリ言語 | Overpass QL |
-| クエリ内容 | 指定ノードIDを含む way のうち highway タグが公道タイプに該当するもの |
+| クエリ内容 | 1回の統合クエリで2種のフィルタを実行（下記参照） |
 | リトライ | 429 レートリミット時に指数バックオフ（1s, 2s, 4s，最大3回） |
-| キャッシュ | ノードID→公道判定を最大50,000件FIFOキャッシュ |
-| 使用箇所 | ルート計画時の公道フィルタ |
+| キャッシュ | ノードID→（公道判定 + 信号判定）を最大50,000件FIFOキャッシュ |
+| 使用箇所 | ルート計画時の公道フィルタ + 信号フィルタ |
+
+**Overpass QL クエリ:**
+```
+[out:json][timeout:10];
+node(id:{nodeIDs})->.isec;
+way(bn.isec)["highway"~"^(trunk|trunk_link|...|living_street)$"];
+out skel qt;
+node.isec["highway"="traffic_signals"];
+out ids qt;
+```
+
+1行目〜2行目: 対象ノードIDを変数 `.isec` に格納
+3行目: `.isec` のノードを含む公道 way を取得 → `type: "way"` として返る
+4行目: `.isec` のうち信号タグを持つノードを取得 → `type: "node"` として返る
+
+パース時に `type` で分岐し，`PublicNodes`（公道上のノード集合）と `SignalNodes`（信号付きノード集合）を構築する．最終的に **公道上 かつ 信号なし** の交差点のみを残す．
 
 ### 7.3 Photon（ジオコーディング）
 
@@ -473,7 +493,7 @@ OSRM レスポンスの steps[].intersections[] から:
 | `BTD_INTERSECTION_MIN_ROADS` | 3 | 交差点の最小道路数 |
 | `BTD_GPS_ACCURACY_THRESHOLD_M` | 20.0 | GPS精度フィルタ（m） |
 | `BTD_OFF_ROUTE_THRESHOLD_M` | 50.0 | 経路逸脱判定距離（m） |
-| `BTD_FILTER_NON_PUBLIC_ROADS` | true | 公道フィルタ有効化 |
+| `BTD_FILTER_NON_PUBLIC_ROADS` | true | 公道フィルタ + 信号フィルタ有効化 |
 | `BTD_OVERPASS_API_URL` | https://overpass-api.de/api/interpreter | Overpass API |
 | `BTD_PHOTON_BASE_URL` | https://photon.komoot.io | Photon API |
 
@@ -503,7 +523,7 @@ OSRM レスポンスの steps[].intersections[] から:
 | GPSバッファリング | IndexedDB に追記（synced=false） | — |
 | GPS送信 | 5秒ごとに未同期分をバッチ POST | — |
 | ルート取得 | — | OSRM API 呼び出し + 交差点抽出 |
-| 公道フィルタ | — | Overpass API + ノードキャッシュ |
+| 公道・信号フィルタ | — | Overpass API 統合クエリ + ノードキャッシュ |
 | 一時停止判定 | — | 距離計算 + 速度閾値判定 |
 | 経路逸脱判定 | — | Haversine + 閾値比較 |
 | リルート | 検知後にルート再取得 | OSRM で新ルート計算 |
@@ -528,4 +548,3 @@ OSRM レスポンスの steps[].intersections[] から:
 | オフライン時 | IndexedDB にバッファし，次回同期間隔でリトライ |
 | リルート通知 | サーバーからの Push 不可．レスポンスの rerouted フラグで検知 |
 | 結果画面のデータ | バックエンド不要（IndexedDB のみ参照） |
-
