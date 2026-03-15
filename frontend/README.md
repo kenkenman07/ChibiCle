@@ -127,7 +127,7 @@
 - score.state
   - 安全に通れた回数
   - getter と setter
-- coordinateNotSafety
+- coordinateNotSafety.state
   - 安全に通れなかった座標
 
 #### indexedDB
@@ -159,3 +159,21 @@
 
 - finishTrip()
   - PATCH /api/trips/{id}/end
+
+## ディレクトリ構造 新規のもののみ記載
+
+src/
+├ hooks/
+│ ├ useGps.ts
+│ └ useWakeLock.ts
+├ lib/
+│ └ db.ts
+├ modules/
+│ ├ route/
+│ │ └route.state.ts
+│ ├ score/
+│ │ └score.state.ts
+│ ├ coordinateNotSafety/
+│ │ └coordinateNotSafety.state.ts
+├ api/
+│ └apiClient.ts
