@@ -1,5 +1,12 @@
 import { useRef, useState } from "react"
-import type { GpsPoint } from "../modules/gps/gps.types"
+
+export type GpsPoint = {
+    lat: number
+    lng: number
+    speed_kmh: number | null
+    accuracy_m: number
+    recorded_at: string
+}
 
 export const useGps = () => {
     const [gps, setGps] = useState<GpsPoint | null>(null)
