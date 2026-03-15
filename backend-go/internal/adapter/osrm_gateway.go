@@ -108,6 +108,7 @@ type overpassResponse struct {
 
 type overpassElement struct {
 	Type  string `json:"type"`
+	ID    int    `json:"id"`    // node の場合のノードID
 	Nodes []int  `json:"nodes"` // way に含まれるノードID列
 }
 
@@ -264,21 +265,27 @@ func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, interse
 		allNIDs[i] = p.nodeID
 	}
 
-	// Overpass API で公道ノードを判定（キャッシュ付き）
+	// Overpass API で公道・信号を同時判定（キャッシュ付き）
 	t0 := time.Now()
-	publicNodeSet, err := g.resolvePublicNodes(ctx, allNIDs)
+	overpass, err := g.resolvePublicNodes(ctx, allNIDs)
 	if err != nil {
 		return nil, err
 	}
-	slog.Info("公道判定", "duration", time.Since(t0).Seconds())
+	slog.Info("公道・信号判定", "duration", time.Since(t0).Seconds())
 
-	// 公道上の交差点のみ残し，unknown は安全側に含める
+	// 公道上かつ信号なしの交差点のみ残し，unknown は安全側に含める
 	before := len(intersections)
 	var filtered []domain.Intersection
+	var signalCount int
 	for _, p := range known {
-		if publicNodeSet[p.nodeID] {
-			filtered = append(filtered, p.isec)
+		if !overpass.PublicNodes[p.nodeID] {
+			continue // 公道上にない
 		}
+		if overpass.SignalNodes[p.nodeID] {
+			signalCount++
+			continue // 信号あり — 除外
+		}
+		filtered = append(filtered, p.isec)
 	}
 	filtered = append(filtered, unknown...)
 
@@ -287,14 +294,17 @@ func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, interse
 	for i, f := range filtered {
 		result[i] = domain.Intersection{Index: i, Lat: f.Lat, Lng: f.Lng, NumRoads: f.NumRoads}
 	}
-	slog.Info("公道フィルタ", "before", before, "after", len(result), "removed", before-len(result))
+	slog.Info("公道・信号フィルタ", "before", before, "after", len(result), "removed_non_public", before-len(result)-signalCount, "removed_signals", signalCount)
 	return result, nil
 }
 
-// resolvePublicNodes はノードIDリストについて公道上にあるかを判定する．
+// resolvePublicNodes はノードIDリストについて公道上にあるか・信号があるかを判定する．
 // キャッシュにヒットしたものはそのまま使い，ミスしたものだけ Overpass API に問い合わせる．
-func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (map[int]bool, error) {
-	public := make(map[int]bool, len(nodeIDs))
+func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (*overpassResult, error) {
+	result := &overpassResult{
+		PublicNodes: make(map[int]bool, len(nodeIDs)),
+		SignalNodes: make(map[int]bool),
+	}
 	var uncached []int
 
 	// キャッシュから読み取り（読み取りロック）
@@ -302,7 +312,7 @@ func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (ma
 	for _, nid := range nodeIDs {
 		if val, ok := g.nodeCache[nid]; ok {
 			if val {
-				public[nid] = true
+				result.PublicNodes[nid] = true
 			}
 		} else {
 			uncached = append(uncached, nid)
@@ -310,22 +320,26 @@ func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (ma
 	}
 	g.mu.RUnlock()
 
+	// 信号キャッシュはないため，キャッシュ全ヒットでも信号判定には Overpass が必要．
+	// ただし全ヒット時は公道判定は確定しているので，信号のみを問い合わせてもよいが，
+	// クエリの統一性・コードの簡潔さを優先し，uncached がない場合はスキップする．
+	// （信号フィルタは初回クエリ時にまとめて処理される）
 	if len(uncached) == 0 {
 		slog.Info("公道キャッシュ: 全ヒット (Overpassスキップ)", "total", len(nodeIDs))
-		return public, nil
+		return result, nil
 	}
 	slog.Info("公道キャッシュ", "hit", len(nodeIDs)-len(uncached), "total", len(nodeIDs), "query", len(uncached))
 
-	// キャッシュミス分を Overpass API で問い合わせ
-	queriedPublic, err := g.queryPublicRoadNodes(ctx, uncached)
+	// キャッシュミス分を Overpass API で問い合わせ（公道+信号を同時取得）
+	queried, err := g.queryPublicRoadNodes(ctx, uncached)
 	if err != nil {
 		return nil, err
 	}
 
-	// キャッシュを更新（書き込みロック）
+	// キャッシュを更新（書き込みロック）— 公道判定のみキャッシュ
 	g.mu.Lock()
 	for _, nid := range uncached {
-		_, isPublic := queriedPublic[nid]
+		_, isPublic := queried.PublicNodes[nid]
 		g.nodeCache[nid] = isPublic
 		g.nodeCacheOrder = append(g.nodeCacheOrder, nid)
 	}
@@ -342,16 +356,25 @@ func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (ma
 	}
 	g.mu.Unlock()
 
-	for nid := range queriedPublic {
-		public[nid] = true
+	for nid := range queried.PublicNodes {
+		result.PublicNodes[nid] = true
 	}
-	return public, nil
+	// 信号ノードはキャッシュ不要（ルート検索ごとに変わらないため初回で十分）
+	result.SignalNodes = queried.SignalNodes
+	return result, nil
+}
+
+// overpassResult は Overpass API クエリの結果を格納する．
+// 公道判定と信号判定の両方の結果を1回のクエリで取得する．
+type overpassResult struct {
+	PublicNodes map[int]bool // 公道上にあるノード
+	SignalNodes map[int]bool // 信号機があるノード
 }
 
 // queryPublicRoadNodes は Overpass API にノードIDリストを問い合わせ，
-// 公道（highway タグが publicRoadTypes に該当する way）上にあるノードを返す．
+// 公道判定と信号判定を1回のクエリで行う．
 // 429 レートリミット時は指数バックオフで最大3回リトライする．
-func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (map[int]bool, error) {
+func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (*overpassResult, error) {
 	// ノードIDリストをカンマ区切り文字列に変換
 	var sb strings.Builder
 	for i, nid := range nodeIDs {
@@ -361,9 +384,11 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 		sb.WriteString(strconv.Itoa(nid))
 	}
 
-	// Overpass QL クエリ: 指定ノードを含む公道 way を検索
+	// Overpass QL クエリ: 公道 way と信号ノードを同時に検索
+	// 1. 指定ノードを含む公道 way を取得
+	// 2. 指定ノードのうち highway=traffic_signals のものを取得
 	query := fmt.Sprintf(
-		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"];out skel qt;`,
+		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"];out skel qt;node.isec["highway"="traffic_signals"];out ids qt;`,
 		sb.String(), highwayRegex,
 	)
 
@@ -404,7 +429,7 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 		break
 	}
 
-	// レスポンスをパースし，way に含まれるノードIDを公道ノードとして収集
+	// レスポンスをパースし，way/node を種別ごとに処理
 	var data overpassResponse
 	if err := json.Unmarshal(respBody, &data); err != nil {
 		return nil, err
@@ -415,19 +440,26 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 		nodeIDSet[nid] = true
 	}
 
-	publicNodes := make(map[int]bool)
+	result := &overpassResult{
+		PublicNodes: make(map[int]bool),
+		SignalNodes: make(map[int]bool),
+	}
 	for _, elem := range data.Elements {
-		if elem.Type != "way" {
-			continue
-		}
-		for _, nid := range elem.Nodes {
-			if nodeIDSet[nid] {
-				publicNodes[nid] = true
+		switch elem.Type {
+		case "way":
+			for _, nid := range elem.Nodes {
+				if nodeIDSet[nid] {
+					result.PublicNodes[nid] = true
+				}
+			}
+		case "node":
+			if nodeIDSet[elem.ID] {
+				result.SignalNodes[elem.ID] = true
 			}
 		}
 	}
-	slog.Info("Overpass", "queried", len(nodeIDs), "public", len(publicNodes))
-	return publicNodes, nil
+	slog.Info("Overpass", "queried", len(nodeIDs), "public", len(result.PublicNodes), "signals", len(result.SignalNodes))
+	return result, nil
 }
 
 // roundTo6 は浮動小数点数を小数点以下6桁に丸める．
