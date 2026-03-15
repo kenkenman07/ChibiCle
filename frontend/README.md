@@ -1,73 +1,104 @@
-# React + TypeScript + Vite
+# データの流れ 必要な機能
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Zustand ストア → atom(jotai) に変更
 
-Currently, two official plugins are available:
+## バックエンドの処理を完全に API を見立てたときのフロントエンドの処理
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ルート検索
 
-## React Compiler
+- ルート検索ページを開く
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+  - 現在地の座標取得
+    - navigator.geolocation.watchPosition()
+  - マップに現在地を表示
+    - Leaflet.js (react-leaflet)
 
-## Expanding the ESLint configuration
+- 目的地を入力し検索ボタン押す
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+  - 目的地の座標取得
+    - /api/geocode?q=&limit=
+  - マップに目的地を表示
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- 「ルート検索をする」に対して「はい」を選択
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+  - トリップを作成する
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+    - POST /api/trips  
+      `{"destination_lat": 35.710,"destination_lng": 139.811}`
+    - 返ってきた id を取得
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+  - ルートを取得
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+    - POST /api/trips/{id}/route  
+      `{"origin_lat": 35.681,"origin_lng": 139.767}`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+    - レスポンス  
+      `geomotry`
+
+    - route を取得 以下に保存
+      1. グローバルステート(atom)
+      2. IndexedDB routes テーブル
+      3. IndexedDB intersectionResults テーブル
+
+  - route.geometry からルートを表示
+
+## 走行中
+
+- Wake Lock 開始メソッドを呼び出す
+
+- 1 秒ごとに現在地情報を取得 (速度・精度・現在地)
+
+  - 現在地情報をグローバルステート(atom)と IndexedDB(gps Point テーブル)に保存
+  - atom からデータを取得 & マップに表示
+  - ?テーブルには`synced: false`を追記して保存する
+    - `synced: false`はまだサーバへ送信されてないことを表す
+
+- 5 秒ごとに IndexedDB(gps Point テーブル)の`synced: false`である現在地情報をサーバへ送る
+
+  - POST /api/gps
+  - レスポンス  
+     `{
+  "saved": 5,
+  "intersection_updates": [
+    {
+      "index": 2,
+      "stopped": true,
+      "min_speed_kmh": 1.2
+    }
+  ],
+  "rerouted": false
+}`
+  - stopped=true の時、グローバルステート(atom)の停止カウントをアップ
+  - IndexedDB intersectionResults テーブルに差分の結果を保存
+
+- リルート(ルートの再検索)
+
+  - レスポンス`"intersection_updates"`中の`"rerouted": true`である場合
+
+  - ルート再取得
+
+    - GET /api/trips/{id}
+
+  - ルートを取得 データを以下のように処理
+
+    1. グローバルステート(atom)を上書き
+    2. IndexedDB routes テーブル を上書き
+    3. IndexedDB intersectionResults テーブル 全削除
+
+       - (これ大丈夫か？？)
+
+## 走行終了
+
+- 走行終了ボタンを押す
+
+  - GPS watchPosition を停止メソッドを呼び出す
+  - 最後のバッチ送信を行う
+
+    - POST /api/gps
+
+  - Wake Lock 終了メソッドを呼び出す
+
+  - PATCH /api/trips/{id}/end を送信する  
+    `{"distance_m": 2345}`
+
+  - レスポンス受信後，/result/{id} へ遷移
