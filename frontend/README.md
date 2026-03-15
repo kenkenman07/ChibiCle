@@ -162,18 +162,19 @@
 
 ## ディレクトリ構造 新規のもののみ記載
 
-src/
-├ hooks/
-│ ├ useGps.ts
-│ └ useWakeLock.ts
-├ lib/
-│ └ db.ts
-├ modules/
-│ ├ route/
-│ │ └route.state.ts
-│ ├ score/
-│ │ └score.state.ts
-│ ├ coordinateNotSafety/
-│ │ └coordinateNotSafety.state.ts
-├ api/
-│ └apiClient.ts
+src/  
+├ hooks/  
+│ ├ useGps.ts  
+│ └ useWakeLock.ts  
+├ lib/  
+│ └ db.ts  
+├ modules/  
+│ ├ route/  
+│ │ └route.state.ts  
+│ ├ score/  
+│ │ └score.state.ts  
+│ ├ coordinateNotSafety/  
+│ │ └coordinateNotSafety.state.ts  
+├ api/  
+│ └apiClient.ts  
+│
