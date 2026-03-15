@@ -50,7 +50,7 @@
 
   - 現在地情報をグローバルステート(atom)と IndexedDB(gps Point テーブル)に保存
   - atom からデータを取得 & マップに表示
-  - ?テーブルには`synced: false`を追記して保存する
+  - gps Point テーブル には`synced: false`を追記して保存する
     - `synced: false`はまだサーバへ送信されてないことを表す
 
 - 5 秒ごとに IndexedDB(gps Point テーブル)の`synced: false`である現在地情報をサーバへ送る
@@ -68,8 +68,12 @@
   ],
   "rerouted": false
 }`
-  - stopped=true の時、グローバルステート(atom)の停止カウントをアップ
-  - IndexedDB intersectionResults テーブルに差分の結果を保存
+  - stopped
+    - true ： グローバルステート(atom)の停止カウントをアップ
+      - route.state に登録
+    - false 座標を保持
+      - coordinateNotSafety に登録
+  - IndexedDB intersectionResults テーブルにレスポンスを上書き
 
 - リルート(ルートの再検索)
 
@@ -84,8 +88,6 @@
     1. グローバルステート(atom)を上書き
     2. IndexedDB routes テーブル を上書き
     3. IndexedDB intersectionResults テーブル 全削除
-
-       - (これ大丈夫か？？)
 
 ## 走行終了
 
@@ -102,3 +104,58 @@
     `{"distance_m": 2345}`
 
   - レスポンス受信後，/result/{id} へ遷移
+
+## 必要な機能
+
+### GPS 関連
+
+- 現在地情報取得メソッド (一回用)
+- 現在地情報取得メソッド (継続的用)
+- GPS 取得停止メソッド
+
+### Wake Lock
+
+- スタート
+- ストップ
+
+### データ登録関連
+
+#### atom
+
+- route.state
+  - getter と setter
+- score.state
+  - 安全に通れた回数
+  - getter と setter
+- coordinateNotSafety
+  - 安全に通れなかった座標
+
+#### indexedDB
+
+- route テーブル
+  - 登録と取得
+- intersectionResults テーブル
+  - 登録と取得と削除
+- gps Point テーブル
+  - 登録と取得
+
+### API クライアント
+
+- createTrips()
+
+  - POST /api/trips
+
+- fetchRoute()
+
+  - POST /api/trips/{id}/route
+
+- sendCurrentLocation()
+
+  - POST /api/gps
+
+- reRoute()
+
+  - GET /api/trips/{id}
+
+- finishTrip()
+  - PATCH /api/trips/{id}/end
