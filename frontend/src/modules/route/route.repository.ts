@@ -3,6 +3,6 @@ import type { Route } from "./route.entity";
 
 export const routeRepository = {
   async insert(route: Route) {
-    await db.table_1.add(route);
+    await db.table_route.add(route);
   },
 };

@@ -1,4 +1,4 @@
-import type { GpsPoint } from "../gps/gps.types";
+import type { GpsPoint } from "../../hooks/useGps";
 
 export type GpsPointsSynced = {
   point: GpsPoint;

@@ -1,24 +1,20 @@
-import { number } from "framer-motion";
-
-export type Route = {
-  id: number;
-};
+export type Route = RouteType["route"];
 
 //仮。どこで使われるかわからないからキムと相談
-const RouteType = {
+type RouteType = {
   route: {
-    geometry: [["lat", "lng"]],
+    geometry: [[lat: number, lng: number]];
     intersections: [
       {
-        index: 0,
-        lat: 35.685,
-        lng: 139.77,
-        num_roads: 3,
-        stopped: false,
-        min_speed_kmh: null,
-      },
-    ],
-    distance_m: 2345.6,
-    duration_s: 480.0,
-  },
+        index: number;
+        lat: number;
+        lng: number;
+        num_roads: number;
+        stopped: boolean;
+        min_speed_kmh: number;
+      }
+    ];
+    distance_m: number;
+    duration_s: number;
+  };
 };
