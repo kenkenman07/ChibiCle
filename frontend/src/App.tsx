@@ -12,12 +12,15 @@ import SignIn from "./pages/SignIn";
 import Result from "./pages/Result";
 import Profile from "./pages/Profile"; // 追加
 import BottomNav from "./components/BottomNav";
+import RoleSelect from "./pages/RoleSelect";
 
 function AppContent() {
   const location = useLocation();
 
   // ボトムナビゲーションを隠すパス
-  const hideNav = ["/riding", "/signin", "/result"].includes(location.pathname);
+  const hideNav = ["/riding", "/signin", "/result", "/role"].includes(
+    location.pathname
+  );
 
   return (
     <div className="flex justify-center bg-gray-100 h-[100dvh] font-sans text-gray-800 overflow-hidden">
@@ -25,6 +28,7 @@ function AppContent() {
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/signin" element={<SignIn />} />
+            <Route path="role" element={<RoleSelect />} />
             <Route path="/" element={<Dashboard />} />
             <Route path="/destination" element={<Destination />} />
             <Route path="/riding" element={<Riding />} />

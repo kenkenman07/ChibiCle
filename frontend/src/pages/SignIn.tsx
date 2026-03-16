@@ -30,7 +30,8 @@ export default function SignIn() {
     await authRepository.signInGoogle();
   };
 
-  if (currentUserStore.currentUser != null) return <Navigate replace to="/" />;
+  if (currentUserStore.currentUser != null)
+    return <Navigate replace to="/role" />;
 
   return (
     <motion.div

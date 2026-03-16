@@ -2,10 +2,12 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home, User, Bike } from "lucide-react";
+import { useRoleStore } from "../modules/role/role.state";
 
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { role } = useRoleStore();
 
   return (
     <div className="absolute bottom-0 w-full bg-white  shadow-[0_-10px_40px_rgba(0,0,0,0.05)] px-18 py-4 flex justify-between items-center z-50">
@@ -15,14 +17,18 @@ export default function BottomNav() {
         onClick={() => navigate("/")}
       />
 
-      <div className="relative -top-6">
-        <button
-          onClick={() => navigate("/destination")}
-          className="w-14 h-14 bg-[#48b98b] rounded-full flex items-center justify-center text-white shadow-lg shadow-emerald-200 border-4 border-[#f4f7f6] active:scale-95 transition-transform"
-        >
-          <Bike className="w-6 h-6" />
-        </button>
-      </div>
+      {role == "child" ? (
+        <div className="relative -top-6">
+          <button
+            onClick={() => navigate("/destination")}
+            className="w-14 h-14 bg-[#48b98b] rounded-full flex items-center justify-center text-white shadow-lg shadow-emerald-200 border-4 border-[#f4f7f6] active:scale-95 transition-transform"
+          >
+            <Bike className="w-6 h-6" />
+          </button>
+        </div>
+      ) : (
+        <></>
+      )}
 
       <NavItem
         icon={<User className="w-6 h-6" />}
