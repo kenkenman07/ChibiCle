@@ -1,16 +1,59 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Search, MapPin, PlayCircle, ChevronRight } from "lucide-react";
+import {
+  Search,
+  PlayCircle,
+  ChevronRight,
+  MapPin,
+  Send,
+  Route as RouteIcon,
+  Navigation,
+} from "lucide-react";
 import { useGps } from "../hooks/useGps";
-import { useEffect } from "react";
-import { MapContainer, Marker, TileLayer } from "react-leaflet";
-import ResizeMap from "../components/Destination/MapInvalidateSize";
+import { useEffect, useState } from "react";
+import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import { useDebounce } from "react-use";
+
+type DummySuggestionType = {
+  lat: number;
+  lng: number;
+  display_name: string;
+};
+
+// ダミーデータ
+const data: DummySuggestionType[] = [
+  { lat: 35.6812, lng: 139.7671, display_name: "東京駅, 千代田区, 東京都" },
+  { lat: 34.7024, lng: 137.7353, display_name: "浜松駅, 中区, 静岡県" },
+];
+
+function MapController({ center }: { center: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      const currentCenter = map.getCenter();
+      const distance = currentCenter.distanceTo([center[0], center[1]]);
+      if (distance > 10) {
+        map.flyTo(center, 15, { duration: 1.5 });
+      }
+    }
+  }, [center, map]);
+  return null;
+}
 
 export default function Destination() {
   const navigate = useNavigate();
   const { gps, getCurrentGpsOnce } = useGps();
+  const [destinationInput, setDestinationInput] = useState("");
+  const [destination, setDestination] = useState<[number, number] | null>(null);
+  const [suggestions, setSuggestions] = useState<DummySuggestionType[] | []>(
+    []
+  );
 
-  const position: [number, number] | null = gps ? [gps.lat, gps.lng] : null;
+  // 【追加】サジェストを表示して良いかどうかのフラグ
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const [isRouteSearched, setIsRouteSearched] = useState(false);
+  const [position, setPosition] = useState<[number, number] | null>(null);
 
   const pageVariants = {
     initial: { opacity: 0, x: 50 },
@@ -21,7 +64,59 @@ export default function Destination() {
   useEffect(() => {
     getCurrentGpsOnce();
   }, []);
-  console.log(gps);
+
+  useEffect(() => {
+    if (gps && !position) {
+      setPosition([gps.lat, gps.lng]);
+    }
+  }, [gps]);
+
+  useDebounce(
+    () => {
+      // 【修正】入力が空、もしくはサジェスト非表示状態なら何もしない
+      if (!destinationInput || !showSuggestions) {
+        setSuggestions([]);
+        return;
+      }
+
+      const fetchSuggestions = async () => {
+        // 実際はAPIからのレスポンスをセットします
+        setSuggestions(data);
+      };
+      fetchSuggestions();
+    },
+    500,
+    [destinationInput, showSuggestions] // 依存配列に showSuggestions を追加
+  );
+
+  const handleSelectSuggestion = (suggestion: DummySuggestionType) => {
+    setDestinationInput(suggestion.display_name);
+    setSuggestions([]);
+    setShowSuggestions(false); // 【追加】選択後はサジェストを非表示にする
+
+    const newPos: [number, number] = [suggestion.lat, suggestion.lng];
+    setDestination(newPos);
+    setPosition(newPos);
+    setIsRouteSearched(false);
+  };
+
+  const handleSearchSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (destination) {
+      setPosition(destination);
+    } else if (suggestions.length > 0) {
+      // 目的地が未確定でエンターを押した場合、サジェストの1件目を強制的にセットする
+      handleSelectSuggestion(suggestions[0]);
+    }
+    setShowSuggestions(false);
+
+    console.log({ destination, isRouteSearched });
+  };
+
+  const handleSearchRoute = () => {
+    console.log("ルートを計算します...", { from: gps, to: destination });
+    setIsRouteSearched(true);
+  };
 
   return (
     <motion.div
@@ -42,20 +137,60 @@ export default function Destination() {
       </div>
 
       <div className="p-6 flex-1 flex flex-col">
-        <div className="relative mb-6">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-            <Search className="w-5 h-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="目的地を検索..."
-            className="w-full bg-gray-100 py-4 pl-12 pr-4 rounded-2xl outline-none focus:ring-2 focus:ring-[#48b98b] transition-all"
-          />
+        <div className="relative z-20 mb-6">
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <Search className="w-5 h-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={destinationInput}
+              onChange={(e) => {
+                setDestinationInput(e.target.value);
+                // 【追加】ユーザーが文字を打ち直したらサジェストを表示ONにし、目的地状態をリセットする
+                setShowSuggestions(true);
+                setDestination(null);
+                setIsRouteSearched(false);
+              }}
+              placeholder="目的地を検索..."
+              className="w-full bg-gray-100 py-4 pl-12 pr-12 rounded-2xl outline-none focus:ring-2 focus:ring-[#48b98b] transition-all"
+            />
+            <button
+              type="submit"
+              disabled={!destinationInput}
+              className="absolute inset-y-0 right-4 flex items-center text-[#48b98b] disabled:text-gray-300 transition-colors"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+
+          {/* 【修正】showSuggestions が true の場合のみリストを表示 */}
+          {showSuggestions && suggestions.length > 0 && destinationInput && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            >
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleSelectSuggestion(suggestion)}
+                  className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b last:border-b-0 border-gray-50"
+                >
+                  <MapPin className="w-5 h-5 text-[#48b98b] shrink-0" />
+                  <span className="text-gray-700 text-sm truncate">
+                    {suggestion.display_name}
+                  </span>
+                </button>
+              ))}
+            </motion.div>
+          )}
         </div>
 
-        <div className="flex-1 bg-gray-200 rounded-3xl mb-6 relative overflow-hidden  border-4 border-white shadow-inner">
+        <div className="bg-gray-200 rounded-3xl mb-6 relative overflow-hidden border-4 border-white shadow-inner h-72 z-10">
           <div
-            className="absolute inset-0 opacity-30"
+            className="absolute inset-0 opacity-30 pointer-events-none"
             style={{
               backgroundImage: "radial-gradient(#48b98b 1px, transparent 1px)",
               backgroundSize: "20px 20px",
@@ -65,9 +200,9 @@ export default function Destination() {
             <MapContainer
               center={position}
               zoom={15}
-              className="absolute inset-0"
+              className="absolute inset-0 z-0"
             >
-              <ResizeMap />
+              <MapController center={position} />
               <TileLayer
                 attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -81,13 +216,38 @@ export default function Destination() {
           )}
         </div>
 
-        <button
-          onClick={() => navigate("/riding")}
-          className="w-full bg-[#ff8652] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-200/50 flex items-center justify-center gap-2 active:scale-95 transition-transform"
-        >
-          <PlayCircle className="w-6 h-6" />
-          記録を開始する
-        </button>
+        {!destination ? (
+          <button
+            key="disabled-btn" // ← 追加
+            disabled
+            className="w-full bg-gray-200 text-gray-400 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 cursor-not-allowed"
+          >
+            <Navigation className="w-6 h-6" />
+            目的地を設定してください
+          </button>
+        ) : !isRouteSearched ? (
+          <motion.button
+            key="search-route-btn" // ← 追加
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={handleSearchRoute}
+            className="w-full bg-[#126f50] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-teal-900/20 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            <RouteIcon className="w-6 h-6" />
+            ルートを検索する
+          </motion.button>
+        ) : (
+          <motion.button
+            key="start-record-btn" // ← 追加
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => navigate("/riding")}
+            className="w-full bg-[#ff8652] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-200/50 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            <PlayCircle className="w-6 h-6" />
+            記録を開始する
+          </motion.button>
+        )}
       </div>
     </motion.div>
   );
