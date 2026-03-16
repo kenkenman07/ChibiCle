@@ -11,6 +11,8 @@ export default function Riding() {
     out: { opacity: 0, scale: 1.05 },
   };
 
+  const updateScore = async () => {};
+
   return (
     <motion.div
       variants={pageVariants}

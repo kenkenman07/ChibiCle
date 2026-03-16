@@ -1,6 +1,7 @@
 import { supabase } from "../../lib/supabase";
+import type { ScoreJson } from "./score.entity";
 
-export const monthlyRepository = {
+export const scoreRepository = {
   async find(userId: string, nowMonth: string) {
     const { data, error } = await supabase
       .from("monthly")
@@ -14,19 +15,11 @@ export const monthlyRepository = {
     return data;
   },
 
-  async insert(userId: string, nowMonth: string) {
-    const { error } = await supabase.from("monthly").upsert(
-      {
-        user_id: userId,
-        target_month: nowMonth,
-        monthly_driving_times: 0,
-        monthly_safety_times: 0,
-      },
-      {
-        onConflict: "user_id,target_month",
-        ignoreDuplicates: true,
-      }
-    );
+  async insert(userId: string, score: ScoreJson) {
+    const { error } = await supabase.from("score").insert({
+      user_id: userId,
+      score: score,
+    });
     if (error != null) throw new Error(error.message);
   },
 };

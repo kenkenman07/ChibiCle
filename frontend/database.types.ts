@@ -19,8 +19,7 @@ export type Database = {
           created_at: string
           id: number
           monthly_driving_times: number
-          monthly_fines_amount: number
-          monthly_violation_times: number
+          monthly_safety_times: number
           target_month: string
           user_id: string
         }
@@ -28,8 +27,7 @@ export type Database = {
           created_at?: string
           id?: number
           monthly_driving_times: number
-          monthly_fines_amount: number
-          monthly_violation_times: number
+          monthly_safety_times: number
           target_month: string
           user_id?: string
         }
@@ -37,10 +35,48 @@ export type Database = {
           created_at?: string
           id?: number
           monthly_driving_times?: number
-          monthly_fines_amount?: number
-          monthly_violation_times?: number
+          monthly_safety_times?: number
           target_month?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      role: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      score: {
+        Row: {
+          created_at: string
+          id: number
+          score: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          score?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          score?: Json | null
+          user_id?: string | null
         }
         Relationships: []
       }
