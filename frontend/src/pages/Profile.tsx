@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { LogOut, Users, ShieldAlert } from "lucide-react";
+import { useCurrentUserStore } from "../modules/auth/current-user.state";
+import { authRepository } from "../modules/auth/auth.repository";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -11,15 +13,14 @@ export default function Profile() {
     out: { opacity: 0, x: -20 },
   };
 
-  //   const navigate = useNavigate();
-  //   const currentUserStore = useCurrentUserStore();
+  const currentUserStore = useCurrentUserStore();
 
-  //   const handleLogout = async () => {
-  //     await authRepository.signOut();
-  //     currentUserStore.set(undefined);
+  const handleLogout = async () => {
+    await authRepository.signOut();
+    currentUserStore.set(undefined);
 
-  //     navigate("/signin");
-  //   };
+    navigate("/signin");
+  };
 
   return (
     <motion.div
@@ -76,7 +77,7 @@ export default function Profile() {
 
         {/* ログアウトボタン */}
         <button
-          onClick={() => navigate("/signin")}
+          onClick={handleLogout}
           className="w-full bg-white text-red-500 py-4 rounded-2xl font-bold text-lg shadow-sm border border-red-100 flex items-center justify-center gap-2 active:scale-95 transition-transform mb-24"
         >
           <LogOut className="w-5 h-5" />

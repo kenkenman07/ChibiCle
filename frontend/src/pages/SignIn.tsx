@@ -1,14 +1,12 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { ShieldCheck, Bike } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { authRepository } from "../modules/auth/auth.repository";
 
 export default function SignIn() {
-  const navigate = useNavigate();
-
   const pageVariants = {
     initial: { opacity: 0, scale: 0.95 },
     in: { opacity: 1, scale: 1 },
@@ -26,6 +24,10 @@ export default function SignIn() {
     if (currentUser != null) {
       currentUserStore.set(currentUser);
     }
+  };
+
+  const signInGoogle = async () => {
+    await authRepository.signInGoogle();
   };
 
   if (currentUserStore.currentUser != null) return <Navigate replace to="/" />;
@@ -73,7 +75,7 @@ export default function SignIn() {
 
         {/* Googleサインインボタン */}
         <button
-          onClick={() => navigate("/")}
+          onClick={signInGoogle}
           className="w-full bg-white text-gray-700 py-4 px-4 rounded-2xl font-bold text-lg shadow-md border border-gray-200 flex items-center justify-center gap-3 active:scale-95 transition-transform hover:bg-gray-50 hover:shadow-lg"
         >
           {/* Google Logo SVG */}
