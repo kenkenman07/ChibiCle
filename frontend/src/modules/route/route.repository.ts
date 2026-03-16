@@ -11,4 +11,8 @@ export const routeRepository = {
     if (data == null) throw new Error("routeデータが見つからない");
     return data;
   },
+
+  async delete() {
+    await db.table_route.clear();
+  },
 };

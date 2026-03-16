@@ -19,6 +19,9 @@ import {
   useMap,
 } from "react-leaflet";
 import { useDebounce } from "react-use";
+import { useRouteStore } from "../modules/route/route.state";
+import { routeRepository } from "../modules/route/route.repository";
+import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
 
 type DummySuggestionType = {
   lat: number;
@@ -33,17 +36,46 @@ const data: DummySuggestionType[] = [
 ];
 
 type LatLng = [number, number];
-
-type RouteData = {
-  geometry: LatLng[];
+type Intersection = {
+  index: number;
+  lat: number;
+  lng: number;
+  num_roads: number;
+  stopped: boolean;
+  min_speed_kmh: number | null;
 };
 
-const route: RouteData = {
-  geometry: [
-    [35.681, 139.767],
-    [35.682, 139.768],
-    [35.683, 139.769],
-  ],
+type RouteData = {
+  id: string;
+  route: {
+    geometry: LatLng[];
+    intersections: Intersection[];
+    distance_m: number;
+    duration_s: number;
+  };
+};
+
+const routeData: RouteData = {
+  id: "a1b2c3d4",
+  route: {
+    geometry: [
+      [35.681, 139.767],
+      [35.682, 139.768],
+      [35.683, 139.769],
+    ],
+    intersections: [
+      {
+        index: 0,
+        lat: 35.685,
+        lng: 139.77,
+        num_roads: 3,
+        stopped: false,
+        min_speed_kmh: null,
+      },
+    ],
+    distance_m: 2345.6,
+    duration_s: 480.0,
+  },
 };
 
 function MapController({ center }: { center: [number, number] | null }) {
@@ -84,6 +116,7 @@ export default function Destination() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isRouteSearched, setIsRouteSearched] = useState(false);
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const routeStore = useRouteStore();
 
   const pageVariants = {
     initial: { opacity: 0, x: 50 },
@@ -102,6 +135,13 @@ export default function Destination() {
       setPosition([gps.lat, gps.lng]);
     }
   }, [gps]);
+
+  useEffect(() => {
+    return () => {
+      routeRepository.delete();
+      intersectionResultsRepository.delete();
+    };
+  }, []);
 
   const createTrip = async () => {
     //const trip = await sendTrip(currentLocation);
@@ -134,7 +174,7 @@ export default function Destination() {
     setIsRouteSearched(false);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (destination) {
       setPosition(destination);
@@ -147,7 +187,10 @@ export default function Destination() {
   };
 
   const handleSearchRoute = async () => {
-    //const data = await searchRoute(trip.id, destination);
+    //const routeData = await searchRoute(trip.id, destination);
+    routeStore.set(routeData);
+    await routeRepository.insert(routeData);
+    await intersectionResultsRepository.insert(routeData);
     setIsRouteSearched(true);
   };
 
@@ -259,7 +302,9 @@ export default function Destination() {
               )}
 
               {/* 【変更】Polylineもルート検索済の時だけ表示させる */}
-              {isRouteSearched && <Polyline positions={route.geometry} />}
+              {isRouteSearched && (
+                <Polyline positions={routeData.route.geometry} />
+              )}
             </MapContainer>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-gray-600 font-medium">

@@ -1,8 +1,8 @@
 import { db } from "../../lib/db";
-import type { IntersectionResults } from "./intersectionResults.entity";
+import type { Route } from "../route/route.entity";
 
-export const routeRepository = {
-  async insert(intersectionResults: IntersectionResults) {
+export const intersectionResultsRepository = {
+  async insert(intersectionResults: Route) {
     await db.table_intersection_result.add(intersectionResults);
   },
 
