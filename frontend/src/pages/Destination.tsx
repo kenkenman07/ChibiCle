@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { useGps } from "../hooks/useGps";
 import { useEffect, useState } from "react";
-import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
 import { useDebounce } from "react-use";
 
 type DummySuggestionType = {
@@ -25,6 +31,20 @@ const data: DummySuggestionType[] = [
   { lat: 35.6812, lng: 139.7671, display_name: "東京駅, 千代田区, 東京都" },
   { lat: 34.7024, lng: 137.7353, display_name: "浜松駅, 中区, 静岡県" },
 ];
+
+type LatLng = [number, number];
+
+type RouteData = {
+  geometry: LatLng[];
+};
+
+const route: RouteData = {
+  geometry: [
+    [35.681, 139.767],
+    [35.682, 139.768],
+    [35.683, 139.769],
+  ],
+};
 
 function MapController({ center }: { center: [number, number] | null }) {
   const map = useMap();
@@ -40,18 +60,28 @@ function MapController({ center }: { center: [number, number] | null }) {
   return null;
 }
 
+// 【追加】2つの座標が両方とも画面に収まるようにカメラを調整するコンポーネント
+function RouteBoundsController({ start, end }: { start: LatLng; end: LatLng }) {
+  const map = useMap();
+  useEffect(() => {
+    map.fitBounds([start, end], { padding: [50, 50], duration: 1.5 });
+  }, [start, end, map]);
+  return null;
+}
+
 export default function Destination() {
   const navigate = useNavigate();
   const { gps, getCurrentGpsOnce } = useGps();
+  const [currentLocation, setCurrentLocation] = useState<
+    [number, number] | null
+  >(null);
   const [destinationInput, setDestinationInput] = useState("");
   const [destination, setDestination] = useState<[number, number] | null>(null);
   const [suggestions, setSuggestions] = useState<DummySuggestionType[] | []>(
     []
   );
 
-  // 【追加】サジェストを表示して良いかどうかのフラグ
   const [showSuggestions, setShowSuggestions] = useState(false);
-
   const [isRouteSearched, setIsRouteSearched] = useState(false);
   const [position, setPosition] = useState<[number, number] | null>(null);
 
@@ -67,32 +97,36 @@ export default function Destination() {
 
   useEffect(() => {
     if (gps && !position) {
+      setCurrentLocation([gps.lat, gps.lng]);
+      createTrip();
       setPosition([gps.lat, gps.lng]);
     }
   }, [gps]);
 
+  const createTrip = async () => {
+    //const trip = await sendTrip(currentLocation);
+  };
+
   useDebounce(
     () => {
-      // 【修正】入力が空、もしくはサジェスト非表示状態なら何もしない
       if (!destinationInput || !showSuggestions) {
         setSuggestions([]);
         return;
       }
 
       const fetchSuggestions = async () => {
-        // 実際はAPIからのレスポンスをセットします
         setSuggestions(data);
       };
       fetchSuggestions();
     },
     500,
-    [destinationInput, showSuggestions] // 依存配列に showSuggestions を追加
+    [destinationInput, showSuggestions]
   );
 
   const handleSelectSuggestion = (suggestion: DummySuggestionType) => {
     setDestinationInput(suggestion.display_name);
     setSuggestions([]);
-    setShowSuggestions(false); // 【追加】選択後はサジェストを非表示にする
+    setShowSuggestions(false);
 
     const newPos: [number, number] = [suggestion.lat, suggestion.lng];
     setDestination(newPos);
@@ -100,12 +134,11 @@ export default function Destination() {
     setIsRouteSearched(false);
   };
 
-  const handleSearchSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (destination) {
       setPosition(destination);
     } else if (suggestions.length > 0) {
-      // 目的地が未確定でエンターを押した場合、サジェストの1件目を強制的にセットする
       handleSelectSuggestion(suggestions[0]);
     }
     setShowSuggestions(false);
@@ -113,8 +146,8 @@ export default function Destination() {
     console.log({ destination, isRouteSearched });
   };
 
-  const handleSearchRoute = () => {
-    console.log("ルートを計算します...", { from: gps, to: destination });
+  const handleSearchRoute = async () => {
+    //const data = await searchRoute(trip.id, destination);
     setIsRouteSearched(true);
   };
 
@@ -147,7 +180,6 @@ export default function Destination() {
               value={destinationInput}
               onChange={(e) => {
                 setDestinationInput(e.target.value);
-                // 【追加】ユーザーが文字を打ち直したらサジェストを表示ONにし、目的地状態をリセットする
                 setShowSuggestions(true);
                 setDestination(null);
                 setIsRouteSearched(false);
@@ -164,7 +196,6 @@ export default function Destination() {
             </button>
           </form>
 
-          {/* 【修正】showSuggestions が true の場合のみリストを表示 */}
           {showSuggestions && suggestions.length > 0 && destinationInput && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -202,12 +233,33 @@ export default function Destination() {
               zoom={15}
               className="absolute inset-0 z-0"
             >
-              <MapController center={position} />
+              {/* 【変更】ルート検索後は2点が収まるように調整、検索前は選択した場所へ移動 */}
+              {isRouteSearched && currentLocation && destination ? (
+                <RouteBoundsController
+                  start={currentLocation}
+                  end={destination}
+                />
+              ) : (
+                <MapController center={position} />
+              )}
+
               <TileLayer
                 attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <Marker position={position} />
+
+              {/* 【変更】ルート検索済なら両方にマーカーを立て、未検索ならpositionのみ */}
+              {isRouteSearched ? (
+                <>
+                  {currentLocation && <Marker position={currentLocation} />}
+                  {destination && <Marker position={destination} />}
+                </>
+              ) : (
+                <Marker position={position} />
+              )}
+
+              {/* 【変更】Polylineもルート検索済の時だけ表示させる */}
+              {isRouteSearched && <Polyline positions={route.geometry} />}
             </MapContainer>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-gray-600 font-medium">
@@ -218,7 +270,7 @@ export default function Destination() {
 
         {!destination ? (
           <button
-            key="disabled-btn" // ← 追加
+            key="disabled-btn"
             disabled
             className="w-full bg-gray-200 text-gray-400 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 cursor-not-allowed"
           >
@@ -227,7 +279,7 @@ export default function Destination() {
           </button>
         ) : !isRouteSearched ? (
           <motion.button
-            key="search-route-btn" // ← 追加
+            key="search-route-btn"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={handleSearchRoute}
@@ -238,7 +290,7 @@ export default function Destination() {
           </motion.button>
         ) : (
           <motion.button
-            key="start-record-btn" // ← 追加
+            key="start-record-btn"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={() => navigate("/riding")}
