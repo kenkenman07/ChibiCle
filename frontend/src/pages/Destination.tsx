@@ -197,15 +197,18 @@ export default function Destination() {
 
   const handleSearchRoute = async () => {
     if (trip == null || currentLocation == null) return;
+
     const routeData = await fetchRoute(trip?.id, {
       origin_lat: currentLocation[0],
       origin_lng: currentLocation[1],
     });
+
     console.log(routeData);
     tripStore.set(routeData);
+    setIsRouteSearched(true);
+
     await tripRepository.insert(routeData);
     await intersectionResultsRepository.insert(routeData);
-    setIsRouteSearched(true);
   };
 
   return (
@@ -317,7 +320,11 @@ export default function Destination() {
 
               {/* 【変更】Polylineもルート検索済の時だけ表示させる */}
               {isRouteSearched && (
-                <Polyline positions={routeData.route.geometry} />
+                <Polyline
+                  positions={
+                    tripStore.trip ? tripStore.trip.route.geometry : []
+                  }
+                />
               )}
             </MapContainer>
           ) : (
