@@ -42,7 +42,7 @@ function AppContent() {
 
   return (
     <div className="flex justify-center bg-gray-100 h-[100dvh] font-sans text-gray-800 overflow-hidden">
-      <div className="w-full max-w-[400px] bg-[#f4f7f6] h-full relative overflow-hidden shadow-2xl flex flex-col">
+      <div className="w-full bg-[#f4f7f6] h-full relative overflow-hidden shadow-2xl flex flex-col">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/signin" element={<SignIn />} />
