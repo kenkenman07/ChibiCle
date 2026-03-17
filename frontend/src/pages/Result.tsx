@@ -5,6 +5,7 @@ import { MapContainer, Marker, TileLayer, Popup } from "react-leaflet";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { scoreRepository } from "../modules/score/score.repository";
 import { useEffect, useState } from "react";
+import type { Score, ScoreJson } from "../modules/score/score.entity";
 
 // ダミーの「安全に通れなかったポイント」データ
 const unsafePoints = [
@@ -26,14 +27,6 @@ const unsafePoints = [
   },
 ];
 
-// ダミーの走行結果データ
-const resultData = {
-  score: 88,
-  safeIntersections: 8,
-  unsafeCount: unsafePoints.length,
-  savedAt: new Date("2026-03-17T15:30:00"),
-};
-
 export default function Result() {
   const navigate = useNavigate();
 
@@ -41,6 +34,7 @@ export default function Result() {
   const { currentUser } = useCurrentUserStore();
   const [date, setDate] = useState<number | null>(null);
   const [hours, setHours] = useState<number | null>(null);
+  const [safetyTimes, setSafetyTimes] = useState<number | null>(null);
 
   const pageVariants = {
     initial: { opacity: 0, y: 50 },
@@ -59,6 +53,8 @@ export default function Result() {
     const date = new Date(data.created_at);
     setDate(date.getDate());
     setHours(date.getHours());
+    const score = data.score as ScoreJson;
+    setSafetyTimes(score.stoppedCount);
   };
 
   return (
@@ -100,21 +96,21 @@ export default function Result() {
         >
           <h2 className="text-gray-500 font-medium mb-2">今回の安全スコア</h2>
           <div className="text-6xl font-bold text-[#ff8652] mb-4 drop-shadow-sm">
-            {resultData.score}
+            88
             <span className="text-2xl text-gray-400 ml-1">pt</span>
           </div>
           <div className="w-full grid grid-cols-2 gap-4 mt-2">
             <div className="bg-gray-50 p-3 rounded-2xl flex flex-col items-center">
               <span className="text-xs text-gray-400 mb-1">交差点通過</span>
               <span className="font-bold text-gray-700 text-lg">
-                {resultData.safeIntersections}
+                50
                 <span className="text-sm font-normal ml-0.5">箇所</span>
               </span>
             </div>
             <div className="bg-emerald-50 p-3 rounded-2xl flex flex-col items-center">
               <span className="text-xs text-emerald-600 mb-1">安全停止</span>
               <span className="font-bold text-emerald-700 text-lg">
-                {resultData.safeIntersections - resultData.unsafeCount}
+                {safetyTimes}
                 <span className="text-sm font-normal ml-0.5">箇所</span>
               </span>
             </div>
