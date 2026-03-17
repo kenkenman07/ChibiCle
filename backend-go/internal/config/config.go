@@ -17,6 +17,7 @@ type Settings struct {
 
 	// OSRM ルーティング設定
 	OsrmBaseURL string `envconfig:"OSRM_BASE_URL" default:"https://router.project-osrm.org"`
+	OsrmProfile string `envconfig:"OSRM_PROFILE" default:"bike"`
 
 	// 交差点判定パラメータ
 	IntersectionRadiusM        float64 `envconfig:"INTERSECTION_RADIUS_M" default:"15.0"`        // 交差点圏内と判定する半径（m）

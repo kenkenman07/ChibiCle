@@ -54,10 +54,10 @@ func NewPhotonGateway(baseURL string, client *http.Client) *PhotonGateway {
 // エラー時はハンドラー層が空配列を返すため，ユーザーには影響しない．
 func (g *PhotonGateway) Search(ctx context.Context, query string, limit int) ([]domain.GeocodingResult, error) {
 	params := url.Values{
-		"q":     {query},
-		"lang":  {"ja"},
+		"q": {query},
+		// "lang":  {"ja"},
 		"limit": {strconv.Itoa(limit)},
-		"lat":   {"35.6812"},  // 東京中心（結果の近接バイアス用）
+		"lat":   {"35.6812"}, // 東京中心（結果の近接バイアス用）
 		"lon":   {"139.7671"},
 	}
 
