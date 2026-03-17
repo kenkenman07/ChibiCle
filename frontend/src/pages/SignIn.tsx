@@ -5,6 +5,7 @@ import { ShieldCheck, Bike } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { authRepository } from "../modules/auth/auth.repository";
+import { useRoleStore } from "../modules/role/role.state";
 
 export default function SignIn() {
   const pageVariants = {
@@ -14,9 +15,11 @@ export default function SignIn() {
   };
 
   const currentUserStore = useCurrentUserStore();
+  const roleStore = useRoleStore();
 
   useEffect(() => {
     checkUserSignIn();
+    roleStore.set(null);
   }, []);
 
   const checkUserSignIn = async () => {
