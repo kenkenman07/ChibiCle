@@ -7,7 +7,12 @@ import { useWakeLock } from "../hooks/useWakeLock";
 import { useGpsStore } from "../modules/gps/gps.state";
 import { gpsPointSyncedRepository } from "../modules/gpsPointSynced/gpsPointSynced.repository";
 import { useTripStore } from "../modules/trip/trip.state";
-import { sendCurrentLocation, type GpsInfo } from "../api/apiClient";
+import {
+  reRoute,
+  sendCurrentLocation,
+  type GpsInfo,
+  type RouteInfo,
+} from "../api/apiClient";
 import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
 
 // 【追加】マップ用のインポート
@@ -18,6 +23,10 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
+import { scoreRepository } from "../modules/score/score.repository";
+import { useCurrentUserStore } from "../modules/auth/current-user.state";
+import type { ScoreJson } from "../modules/score/score.entity";
+import { tripRepository } from "../modules/trip/trip.repository";
 
 // 【追加】現在地が更新されるたびにマップの中心を移動させるコンポーネント
 function MapCenterController({ center }: { center: [number, number] | null }) {
@@ -44,6 +53,11 @@ export default function Riding() {
   const { trip } = useTripStore();
   const gpsStore = useGpsStore();
   const { currentGps } = useGpsStore();
+  const { currentUser } = useCurrentUserStore();
+  let interSectionNumber: number = 0;
+  let stoppedCount: number = 0;
+  const unStoppedIntersections: { lat: number; lng: number }[] = [];
+  const tripStore = useTripStore();
 
   // routeデータを取得
   const route = trip?.route.geometry;
@@ -83,6 +97,7 @@ export default function Riding() {
 
   const finishRiding = async () => {
     await sendGps();
+    await recordScore();
     navigate("/result");
   };
 
@@ -100,8 +115,37 @@ export default function Riding() {
       points: sendData,
     });
 
+    if (result.rerouted == true) await routeSearchAgain();
+
     await intersectionResultsRepository.insert(result);
+
+    interSectionNumber += result.intersection_updates.length;
+    result.intersection_updates.map((index) => {
+      if (index.stopped == true) stoppedCount++;
+      else unStoppedIntersections.push({ lat: index.lat, lng: index.lng });
+    });
+
     console.log(result);
+  };
+
+  const recordScore = async () => {
+    if (currentUser == null) return;
+    const score: ScoreJson = {
+      intersectionNumber: interSectionNumber,
+      stoppedCount: stoppedCount,
+      notSafetyIntersections: unStoppedIntersections,
+    };
+    await scoreRepository.update(currentUser.id, score);
+  };
+
+  const routeSearchAgain = async () => {
+    if (trip == null) return;
+    const routeData: RouteInfo = await reRoute(trip?.id);
+    console.log(routeData);
+    tripStore.set(routeData);
+    await tripRepository.insert(routeData);
+    await intersectionResultsRepository.delete();
+    await intersectionResultsRepository.insert(routeData);
   };
 
   return (

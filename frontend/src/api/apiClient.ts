@@ -64,11 +64,7 @@ export type RouteInfo = {
   route: Route;
 };
 
-type IntersectionUpdates = {
-  index: number;
-  stopped: boolean;
-  min_speed_kmh: number;
-};
+type IntersectionUpdates = Intersection;
 
 // GET /api/trips/{tripID}/intersections
 // 型不明
@@ -126,7 +122,7 @@ export const getAllTrips = async (): Promise<TripInfo[]> => {
 
 // トリップ詳細取得 - リルート後のルート再取得
 export const reRoute = async (tripId: string) => {
-  return await apiClient(`/trips/${tripId}`, {
+  return await apiClient<RouteInfo>(`/trips/${tripId}`, {
     method: "GET",
   });
 };

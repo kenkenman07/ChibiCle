@@ -14,7 +14,7 @@ export const scoreRepository = {
     return data;
   },
 
-  async insert(userId: string, score: ScoreJson) {
+  async update(userId: string, score: ScoreJson) {
     const { error } = await supabase.from("score").upsert({
       user_id: userId,
       score: score,
