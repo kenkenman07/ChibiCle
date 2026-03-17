@@ -1,10 +1,6 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-env/
+# Go
+backend-go/server
+backend-go/tmp/
 
 # Node
 node_modules/
@@ -30,4 +26,3 @@ Thumbs.db
 *.swp
 *.swo
 
-.md
