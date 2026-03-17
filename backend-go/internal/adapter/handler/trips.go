@@ -45,6 +45,11 @@ type tripOut struct {
 	Route          *routeOut `json:"route"` // ルート未設定時は null
 }
 
+type routePlanOut struct {
+	ID    string   `json:"id"`
+	Route routeOut `json:"route"`
+}
+
 // routeOut はルートのJSON出力形式．
 type routeOut struct {
 	Geometry      [][]float64       `json:"geometry"`      // [[lat, lng], ...] の座標列
@@ -156,7 +161,16 @@ func (h *TripHandler) PlanRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, h.toOut(trip))
+	route := h.routeOut(trip.ID)
+	if route == nil {
+		writeError(w, http.StatusInternalServerError, "route was not saved")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, routePlanOut{
+		ID:    trip.ID,
+		Route: *route,
+	})
 }
 
 // EndTrip はトリップを終了する．ended_at を記録し，任意で走行距離を保存する．
