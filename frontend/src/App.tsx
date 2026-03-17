@@ -36,9 +36,13 @@ function AppContent() {
   if (isLoading) return <div />;
 
   // ボトムナビゲーションを隠すパス
-  const hideNav = ["/riding", "/signin", "/result", "/role"].includes(
-    location.pathname
-  );
+  const hideNav = [
+    "/riding",
+    "/signin",
+    "/result",
+    "/role",
+    "/destination",
+  ].includes(location.pathname);
 
   return (
     <div className="flex justify-center bg-gray-100 h-[100dvh] font-sans text-gray-800 overflow-hidden">
