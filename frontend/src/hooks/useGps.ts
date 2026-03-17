@@ -38,6 +38,7 @@ export const useGps = () => {
       (err) => setGpsError(err.message),
       {
         enableHighAccuracy: true,
+        maximumAge: 0
       }
     );
   };

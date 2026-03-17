@@ -20,9 +20,9 @@ export default function Result() {
   );
   const [unsafePoints, setUnsafePoints] = useState<
     | {
-        lat: number;
-        lng: number;
-      }[]
+      lat: number;
+      lng: number;
+    }[]
     | null
   >(null);
 
@@ -49,6 +49,13 @@ export default function Result() {
     setInterSectionNumber(score.intersectionNumber);
     setUnsafePoints(score.notSafetyIntersections);
   };
+
+  const scorePercent = (() => {
+    if (!intersectionNumber || intersectionNumber === 0) return 0;
+    if (!safetyTimes) return 0;
+
+    return Math.round((safetyTimes / intersectionNumber) * 100);
+  })();
 
   return (
     <motion.div
@@ -89,7 +96,7 @@ export default function Result() {
         >
           <h2 className="text-gray-500 font-medium mb-2">今回の安全スコア</h2>
           <div className="text-6xl font-bold text-[#ff8652] mb-4 drop-shadow-sm">
-            88
+            {scorePercent}
             <span className="text-2xl text-gray-400 ml-1">pt</span>
           </div>
           <div className="w-full grid grid-cols-2 gap-4 mt-2">
