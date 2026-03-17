@@ -173,8 +173,8 @@ export const sendCurrentLocation = async (
 // 地名検索 - 出発地・目的地検索
 export const searchPlace = async (
   query: GeoQueryParam
-): Promise<SearchResultInfo> => {
-  return await apiClient<SearchResultInfo>(
+): Promise<SearchResultInfo[]> => {
+  return await apiClient<SearchResultInfo[]>(
     `/geocode?q=${query.location_name}&limit=${query.limit}`,
     {
       method: "GET",

@@ -22,19 +22,13 @@ import { useDebounce } from "react-use";
 import { useRouteStore } from "../modules/route/route.state";
 import { routeRepository } from "../modules/route/route.repository";
 import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
-import { fetchRoute, sendTrips, type TripInfo } from "../api/apiClient";
-
-type DummySuggestionType = {
-  lat: number;
-  lng: number;
-  display_name: string;
-};
-
-// ダミーデータ
-const data: DummySuggestionType[] = [
-  { lat: 35.6812, lng: 139.7671, display_name: "東京駅, 千代田区, 東京都" },
-  { lat: 34.7024, lng: 137.7353, display_name: "浜松駅, 中区, 静岡県" },
-];
+import {
+  fetchRoute,
+  searchPlace,
+  sendTrips,
+  type SearchResultInfo,
+  type TripInfo,
+} from "../api/apiClient";
 
 type LatLng = [number, number];
 type Intersection = {
@@ -108,10 +102,10 @@ export default function Destination() {
   const [currentLocation, setCurrentLocation] = useState<
     [number, number] | null
   >(null);
-  const [destinationInput, setDestinationInput] = useState("");
+  const [locationInput, setLocationInput] = useState<string>("");
   const [destination, setDestination] = useState<[number, number] | null>(null);
-  const [suggestions, setSuggestions] = useState<DummySuggestionType[] | []>(
-    []
+  const [suggestions, setSuggestions] = useState<SearchResultInfo[] | null>(
+    null
   );
 
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -152,26 +146,34 @@ export default function Destination() {
       destination_lng: destination[1],
     });
     setTrip(tripInfo);
+    console.log(trip?.id);
   };
 
   useDebounce(
     () => {
-      if (!destinationInput || !showSuggestions) {
+      if (!locationInput || !showSuggestions) {
         setSuggestions([]);
         return;
       }
 
       const fetchSuggestions = async () => {
+        const data: SearchResultInfo[] = await searchPlace({
+          location_name: locationInput,
+          limit: 6,
+        });
+        if (data == null) return;
+        console.log(data);
         setSuggestions(data);
       };
       fetchSuggestions();
     },
     500,
-    [destinationInput, showSuggestions]
+    [locationInput, showSuggestions]
   );
 
-  const handleSelectSuggestion = (suggestion: DummySuggestionType) => {
-    setDestinationInput(suggestion.display_name);
+  const handleSelectSuggestion = async (suggestion: SearchResultInfo) => {
+    setLocationInput(suggestion.display_name);
+    setDestination([suggestion.lat, suggestion.lng]);
     setSuggestions([]);
     setShowSuggestions(false);
 
@@ -186,12 +188,11 @@ export default function Destination() {
     if (destination) {
       setPosition(destination);
       createTrip();
-    } else if (suggestions.length > 0) {
-      handleSelectSuggestion(suggestions[0]);
+    } else if (locationInput && suggestions!.length > 0) {
+      handleSelectSuggestion(suggestions![0]);
     }
+    console.log("おそらくdestinationがnull");
     setShowSuggestions(false);
-
-    console.log({ destination, isRouteSearched });
   };
 
   const handleSearchRoute = async () => {
@@ -200,6 +201,7 @@ export default function Destination() {
       origin_lat: currentLocation[0],
       origin_lng: currentLocation[1],
     });
+    console.log(routeData);
     routeStore.set(routeData);
     await routeRepository.insert(routeData);
     await intersectionResultsRepository.insert(routeData);
@@ -232,9 +234,9 @@ export default function Destination() {
             </div>
             <input
               type="text"
-              value={destinationInput}
+              value={locationInput}
               onChange={(e) => {
-                setDestinationInput(e.target.value);
+                setLocationInput(e.target.value);
                 setShowSuggestions(true);
                 setDestination(null);
                 setIsRouteSearched(false);
@@ -244,20 +246,20 @@ export default function Destination() {
             />
             <button
               type="submit"
-              disabled={!destinationInput}
+              disabled={!locationInput}
               className="absolute inset-y-0 right-4 flex items-center text-[#48b98b] disabled:text-gray-300 transition-colors"
             >
               <Send className="w-5 h-5" />
             </button>
           </form>
 
-          {showSuggestions && suggestions.length > 0 && destinationInput && (
+          {showSuggestions && suggestions!.length > 0 && locationInput && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="absolute w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
             >
-              {suggestions.map((suggestion, index) => (
+              {suggestions!.map((suggestion, index) => (
                 <button
                   key={index}
                   type="button"
