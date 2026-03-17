@@ -19,59 +19,19 @@ import {
   useMap,
 } from "react-leaflet";
 import { useDebounce } from "react-use";
-import { useRouteStore } from "../modules/route/route.state";
-import { routeRepository } from "../modules/route/route.repository";
+import { useTripStore } from "../modules/trip/trip.state";
+import { tripRepository } from "../modules/trip/trip.repository";
 import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
 import {
   fetchRoute,
   searchPlace,
   sendTrips,
+  type DestinationPosition,
   type SearchResultInfo,
   type TripInfo,
 } from "../api/apiClient";
 
 type LatLng = [number, number];
-type Intersection = {
-  index: number;
-  lat: number;
-  lng: number;
-  num_roads: number;
-  stopped: boolean;
-  min_speed_kmh: number | null;
-};
-
-type RouteData = {
-  id: string;
-  route: {
-    geometry: LatLng[];
-    intersections: Intersection[];
-    distance_m: number;
-    duration_s: number;
-  };
-};
-
-const routeData: RouteData = {
-  id: "a1b2c3d4",
-  route: {
-    geometry: [
-      [35.681, 139.767],
-      [35.682, 139.768],
-      [35.683, 139.769],
-    ],
-    intersections: [
-      {
-        index: 0,
-        lat: 35.685,
-        lng: 139.77,
-        num_roads: 3,
-        stopped: false,
-        min_speed_kmh: null,
-      },
-    ],
-    distance_m: 2345.6,
-    duration_s: 480.0,
-  },
-};
 
 function MapController({ center }: { center: [number, number] | null }) {
   const map = useMap();
@@ -96,6 +56,8 @@ function RouteBoundsController({ start, end }: { start: LatLng; end: LatLng }) {
   return null;
 }
 
+//const dummy: [number, number] = [50, 120];
+
 export default function Destination() {
   const navigate = useNavigate();
   const { gps, getCurrentGpsOnce } = useGps();
@@ -111,7 +73,7 @@ export default function Destination() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isRouteSearched, setIsRouteSearched] = useState(false);
   const [position, setPosition] = useState<[number, number] | null>(null);
-  const routeStore = useRouteStore();
+  const tripStore = useTripStore();
   const [trip, setTrip] = useState<TripInfo | null>(null);
 
   const pageVariants = {
@@ -134,7 +96,7 @@ export default function Destination() {
 
   useEffect(() => {
     return () => {
-      routeRepository.delete();
+      tripRepository.delete();
       intersectionResultsRepository.delete();
     };
   }, []);
@@ -178,9 +140,10 @@ export default function Destination() {
     setShowSuggestions(false);
 
     const newPos: [number, number] = [suggestion.lat, suggestion.lng];
-    setDestination(newPos);
     setPosition(newPos);
     setIsRouteSearched(false);
+
+    console.log(destination);
   };
 
   const handleSearchSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
@@ -197,15 +160,18 @@ export default function Destination() {
 
   const handleSearchRoute = async () => {
     if (trip == null || currentLocation == null) return;
+
     const routeData = await fetchRoute(trip?.id, {
       origin_lat: currentLocation[0],
       origin_lng: currentLocation[1],
     });
+
     console.log(routeData);
-    routeStore.set(routeData);
-    await routeRepository.insert(routeData);
-    await intersectionResultsRepository.insert(routeData);
+    tripStore.set(routeData);
     setIsRouteSearched(true);
+
+    await tripRepository.insert(routeData);
+    await intersectionResultsRepository.insert(routeData);
   };
 
   return (
@@ -317,7 +283,11 @@ export default function Destination() {
 
               {/* 【変更】Polylineもルート検索済の時だけ表示させる */}
               {isRouteSearched && (
-                <Polyline positions={routeData.route.geometry} />
+                <Polyline
+                  positions={
+                    tripStore.trip ? tripStore.trip.route.geometry : []
+                  }
+                />
               )}
             </MapContainer>
           ) : (

@@ -1,7 +1,7 @@
 import { atom, useAtom } from "jotai";
-import type { Score } from "./score.entity";
+import type { ScoreJson } from "./score.entity";
 
-const scoreAtom = atom<Score>();
+const scoreAtom = atom<ScoreJson>();
 
 export const useScoreStore = () => {
   const [score, setScore] = useAtom(scoreAtom);

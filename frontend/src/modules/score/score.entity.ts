@@ -1,19 +1,12 @@
 import type { Database } from "../../../database.types";
 
 export type Score = Database["public"]["Tables"]["score"];
-type NotSafety = {
-  unStoppedCount: number;
-  intersections: {
-    index: number;
-    lat: number;
-    lng: number;
-    num_roads: number;
-    stopped: boolean;
-    min_speed_kmh: number;
-  }[];
-};
 
 export type ScoreJson = {
+  intersectionNumber: number;
   stoppedCount: number;
-  notSafety: NotSafety;
+  notSafetyIntersections: {
+    lat: number;
+    lng: number;
+  }[];
 };

@@ -6,9 +6,18 @@ export const gpsPointSyncedRepository = {
     await db.table_gps_points_synced.add(gpsPointSynced);
   },
 
-  async find() {
-    const data = await db.table_gps_points_synced.toArray();
+  async findUnSynced() {
+    const data = await db.table_gps_points_synced
+      .where("synced")
+      .equals(0)
+      .toArray();
     if (data == null) throw new Error("gps_points_syncedデータが見つからない");
     return data;
+  },
+
+  async update(id: number) {
+    await db.table_gps_points_synced.update(id, {
+      synced: 1,
+    });
   },
 };
