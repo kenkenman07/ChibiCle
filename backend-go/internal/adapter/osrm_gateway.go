@@ -39,6 +39,7 @@ const nodeCacheMax = 50_000
 // 組み合わせた RoutingService の実装．
 type OsrmGateway struct {
 	baseURL              string       // OSRM APIのベースURL
+	profile              string       // OSRM profile名（例: bike）
 	minRoads             int          // 交差点とみなす最小道路数
 	filterNonPublicRoads bool         // 公道フィルタを有効にするか
 	overpassURL          string       // Overpass APIのURL
@@ -49,9 +50,10 @@ type OsrmGateway struct {
 	nodeCacheOrder []int          // FIFO eviction 用の挿入順序
 }
 
-func NewOsrmGateway(baseURL string, minRoads int, filterNonPublicRoads bool, overpassURL string, client *http.Client) *OsrmGateway {
+func NewOsrmGateway(baseURL, profile string, minRoads int, filterNonPublicRoads bool, overpassURL string, client *http.Client) *OsrmGateway {
 	return &OsrmGateway{
 		baseURL:              strings.TrimRight(baseURL, "/"),
+		profile:              normalizeOsrmProfile(profile),
 		minRoads:             minRoads,
 		filterNonPublicRoads: filterNonPublicRoads,
 		overpassURL:          overpassURL,
@@ -90,7 +92,7 @@ type osrmLeg struct {
 }
 
 type osrmAnnotation struct {
-	Nodes []int `json:"nodes"` // 経路上のOSMノードID列
+	Nodes []float64 `json:"nodes"` // 経路上のOSMノードID列
 }
 
 type osrmStep struct {
@@ -116,7 +118,7 @@ type overpassElement struct {
 func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.LatLng) (*domain.Route, error) {
 	// OSRM は lng,lat の順で座標を受け取る
 	coords := fmt.Sprintf("%f,%f;%f,%f", origin.Lng, origin.Lat, destination.Lng, destination.Lat)
-	reqURL := fmt.Sprintf("%s/route/v1/bicycle/%s?steps=true&geometries=geojson&overview=full&annotations=nodes", g.baseURL, coords)
+	reqURL := fmt.Sprintf("%s/route/v1/%s/%s?steps=true&geometries=geojson&overview=full&annotations=nodes", g.baseURL, g.profile, coords)
 
 	t0 := time.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
@@ -168,9 +170,12 @@ func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.La
 	var annotationNodes []int
 	for _, leg := range osrmR.Legs {
 		if leg.Annotation != nil {
-			annotationNodes = append(annotationNodes, leg.Annotation.Nodes...)
+			for _, n := range leg.Annotation.Nodes {
+				annotationNodes = append(annotationNodes, int(n))
+			}
 		}
 	}
+
 	coordToNode := make(map[[2]float64]int)
 	for i, nodeID := range annotationNodes {
 		if i < len(osrmR.Geometry.Coordinates) {
@@ -466,4 +471,14 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 // 座標の重複判定で使用する（約0.1mの精度）．
 func roundTo6(v float64) float64 {
 	return math.Round(v*1e6) / 1e6
+}
+
+func normalizeOsrmProfile(profile string) string {
+	profile = strings.TrimSpace(strings.ToLower(profile))
+	switch profile {
+	case "", "bicycle":
+		return "bike"
+	default:
+		return profile
+	}
 }

@@ -48,6 +48,7 @@ func main() {
 	repo := adapter.NewInMemoryRepository() // 全リポジトリのインメモリ実装
 	osrm := adapter.NewOsrmGateway(         // OSRM + Overpass（ルーティング + 公道判定）
 		settings.OsrmBaseURL,
+		settings.OsrmProfile,
 		settings.IntersectionMinRoads,
 		settings.FilterNonPublicRoads,
 		settings.OverpassAPIURL,
