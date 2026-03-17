@@ -22,6 +22,7 @@ import { useDebounce } from "react-use";
 import { useRouteStore } from "../modules/route/route.state";
 import { routeRepository } from "../modules/route/route.repository";
 import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
+import { fetchRoute, sendTrips, type TripInfo } from "../api/apiClient";
 
 type DummySuggestionType = {
   lat: number;
@@ -117,6 +118,7 @@ export default function Destination() {
   const [isRouteSearched, setIsRouteSearched] = useState(false);
   const [position, setPosition] = useState<[number, number] | null>(null);
   const routeStore = useRouteStore();
+  const [trip, setTrip] = useState<TripInfo | null>(null);
 
   const pageVariants = {
     initial: { opacity: 0, x: 50 },
@@ -131,7 +133,7 @@ export default function Destination() {
   useEffect(() => {
     if (gps && !position) {
       setCurrentLocation([gps.lat, gps.lng]);
-      createTrip();
+
       setPosition([gps.lat, gps.lng]);
     }
   }, [gps]);
@@ -144,7 +146,12 @@ export default function Destination() {
   }, []);
 
   const createTrip = async () => {
-    //const trip = await sendTrip(currentLocation);
+    if (!destination) return;
+    const tripInfo = await sendTrips({
+      destination_lat: destination[0],
+      destination_lng: destination[1],
+    });
+    setTrip(tripInfo);
   };
 
   useDebounce(
@@ -178,6 +185,7 @@ export default function Destination() {
     e.preventDefault();
     if (destination) {
       setPosition(destination);
+      createTrip();
     } else if (suggestions.length > 0) {
       handleSelectSuggestion(suggestions[0]);
     }
@@ -187,7 +195,11 @@ export default function Destination() {
   };
 
   const handleSearchRoute = async () => {
-    //const routeData = await searchRoute(trip.id, destination);
+    if (trip == null || currentLocation == null) return;
+    const routeData = await fetchRoute(trip?.id, {
+      origin_lat: currentLocation[0],
+      origin_lng: currentLocation[1],
+    });
     routeStore.set(routeData);
     await routeRepository.insert(routeData);
     await intersectionResultsRepository.insert(routeData);
