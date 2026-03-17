@@ -31,47 +31,6 @@ import {
 } from "../api/apiClient";
 
 type LatLng = [number, number];
-type Intersection = {
-  index: number;
-  lat: number;
-  lng: number;
-  num_roads: number;
-  stopped: boolean;
-  min_speed_kmh: number | null;
-};
-
-type RouteData = {
-  id: string;
-  route: {
-    geometry: LatLng[];
-    intersections: Intersection[];
-    distance_m: number;
-    duration_s: number;
-  };
-};
-
-const routeData: RouteData = {
-  id: "a1b2c3d4",
-  route: {
-    geometry: [
-      [35.681, 139.767],
-      [35.682, 139.768],
-      [35.683, 139.769],
-    ],
-    intersections: [
-      {
-        index: 0,
-        lat: 35.685,
-        lng: 139.77,
-        num_roads: 3,
-        stopped: false,
-        min_speed_kmh: null,
-      },
-    ],
-    distance_m: 2345.6,
-    duration_s: 480.0,
-  },
-};
 
 function MapController({ center }: { center: [number, number] | null }) {
   const map = useMap();

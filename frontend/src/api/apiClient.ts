@@ -114,11 +114,11 @@ export const sendTrips = async (
 };
 
 // トリップ一覧取得 - 履歴画面
-export const getAllTrips = async (): Promise<TripInfo[]> => {
-  return await apiClient<TripInfo[]>("trips", {
-    method: "POST",
-  });
-};
+// export const getAllTrips = async (): Promise<TripInfo[]> => {
+//   return await apiClient<TripInfo[]>("trips", {
+//     method: "POST",
+//   });
+// };
 
 // トリップ詳細取得 - リルート後のルート再取得
 export const reRoute = async (tripId: string) => {
