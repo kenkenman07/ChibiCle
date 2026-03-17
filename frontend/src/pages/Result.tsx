@@ -1,31 +1,11 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ShieldCheck, Home, AlertTriangle } from "lucide-react";
-import { MapContainer, Marker, TileLayer, Popup } from "react-leaflet";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { scoreRepository } from "../modules/score/score.repository";
 import { useEffect, useState } from "react";
 import type { ScoreJson } from "../modules/score/score.entity";
-
-// ダミーの「安全に通れなかったポイント」データ
-const unsafePoints = [
-  {
-    id: 1,
-    lat: 34.705,
-    lng: 137.733,
-    time: "14:23",
-    reason: "一時不停止の疑い",
-    locationName: "中区〇〇交差点",
-  },
-  {
-    id: 2,
-    lat: 34.7,
-    lng: 137.738,
-    time: "14:35",
-    reason: "減速不十分",
-    locationName: "南区△△交差点",
-  },
-];
 
 export default function Result() {
   const navigate = useNavigate();
