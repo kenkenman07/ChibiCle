@@ -24,6 +24,8 @@ export default function Riding() {
     }
   }, []);
 
+  const updateScore = async () => {};
+
   return (
     <motion.div
       variants={pageVariants}

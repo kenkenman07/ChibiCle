@@ -10,13 +10,16 @@ import {
 } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
 import { useRoleStore } from "../modules/role/role.state";
+import { useEffect, useState } from "react";
+import { useCurrentUserStore } from "../modules/auth/current-user.state";
+import type { MonthlyData } from "../modules/monthly/monthly.entity";
+import { monthlyRepository } from "../modules/monthly/monthly.repository";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  //   const { currentUser } = useCurrentUserStore();
-  //   const [monthlyData, setMonthlyData] = useState<MonthlyData | null>(null);
+  const { currentUser } = useCurrentUserStore();
+  const [monthlyData, setMonthlyData] = useState<MonthlyData | null>(null);
 
-  // 【追加】親か子どもかを判定する状態（アバタータップで切り替え可能にしています）
   const { role } = useRoleStore();
 
   const pageVariants = {
@@ -25,23 +28,30 @@ export default function Dashboard() {
     out: { opacity: 0, y: -20 },
   };
 
-  //   useEffect(() => {
-  //     fetchMonthlyData();
-  //   }, []);
+  useEffect(() => {
+    const now = Date.now();
+    const date = new Date(now);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
 
-  //   const fetchMonthlyData = async () => {
-  //     const now = Date.now();
-  //     const date = new Date(now);
-  //     const year = date.getFullYear();
-  //     const month = date.getMonth() + 1;
+    const nowMonth = `${year}-${month}`;
+    insertNewMonth(nowMonth);
+    fetchMonthlyData(nowMonth);
+  }, [currentUser]);
 
-  //     const targetMonth = `${year}-${month}`;
+  const fetchMonthlyData = async (nowMonth: string) => {
+    if (currentUser == null) return;
 
-  //     const monthly = await monthlyRepository.find(currentUser!.id, targetMonth);
-  //     if (monthly != null) setMonthlyData(monthly);
-  //   };
+    const monthly = await monthlyRepository.find(currentUser.id, nowMonth);
 
-  //   const insertNewMonth = async () => {};
+    if (monthly != null) setMonthlyData(monthly);
+  };
+
+  const insertNewMonth = async (nowMonth: string) => {
+    if (currentUser == null) return;
+
+    await monthlyRepository.insert(currentUser.id, nowMonth);
+  };
 
   return (
     // 【修正点】flex flex-col を追加
@@ -117,7 +127,8 @@ export default function Dashboard() {
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div className="text-3xl font-bold mb-1">
-              85<span className="text-sm font-normal opacity-80 ml-1">pt</span>
+              {monthlyData?.monthly_safety_times}
+              <span className="text-sm font-normal opacity-80 ml-1">pt</span>
             </div>
             <div className="text-sm font-medium">安全スコア</div>
           </div>
@@ -128,7 +139,8 @@ export default function Dashboard() {
               <Bike className="w-6 h-6" />
             </div>
             <div className="text-3xl font-bold mb-1">
-              12<span className="text-sm font-normal opacity-80 ml-1">回</span>
+              {monthlyData?.monthly_driving_times}
+              <span className="text-sm font-normal opacity-80 ml-1">回</span>
             </div>
             <div className="text-sm font-medium">走行回数</div>
           </div>

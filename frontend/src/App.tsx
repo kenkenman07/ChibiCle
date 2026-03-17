@@ -13,9 +13,27 @@ import Result from "./pages/Result";
 import Profile from "./pages/Profile"; // 追加
 import BottomNav from "./components/BottomNav";
 import RoleSelect from "./pages/RoleSelect";
+import { useEffect, useState } from "react";
+import { useCurrentUserStore } from "./modules/auth/current-user.state";
+import { authRepository } from "./modules/auth/auth.repository";
 
 function AppContent() {
   const location = useLocation();
+
+  const [isLoading, setIsLoading] = useState(true);
+  const currentUserStore = useCurrentUserStore();
+
+  useEffect(() => {
+    setSession();
+  }, []);
+
+  const setSession = async () => {
+    const currentUser = await authRepository.getCurrentUser();
+    currentUserStore.set(currentUser);
+    setIsLoading(false);
+  };
+
+  if (isLoading) return <div />;
 
   // ボトムナビゲーションを隠すパス
   const hideNav = ["/riding", "/signin", "/result", "/role"].includes(
