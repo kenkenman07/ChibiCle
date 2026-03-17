@@ -141,7 +141,7 @@ export default function Riding() {
   const routeSearchAgain = async () => {
     if (trip == null) return;
     const routeData: RouteInfo = await reRoute(trip?.id);
-    console.log(routeData);
+    //console.log(routeData);
     tripStore.set(routeData);
     await tripRepository.insert(routeData);
     await intersectionResultsRepository.delete();

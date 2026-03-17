@@ -26,6 +26,7 @@ import {
   fetchRoute,
   searchPlace,
   sendTrips,
+  type DestinationPosition,
   type SearchResultInfo,
   type TripInfo,
 } from "../api/apiClient";
@@ -54,6 +55,8 @@ function RouteBoundsController({ start, end }: { start: LatLng; end: LatLng }) {
   }, [start, end, map]);
   return null;
 }
+
+//const dummy: [number, number] = [50, 120];
 
 export default function Destination() {
   const navigate = useNavigate();
@@ -137,9 +140,10 @@ export default function Destination() {
     setShowSuggestions(false);
 
     const newPos: [number, number] = [suggestion.lat, suggestion.lng];
-    setDestination(newPos);
     setPosition(newPos);
     setIsRouteSearched(false);
+
+    console.log(destination);
   };
 
   const handleSearchSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
