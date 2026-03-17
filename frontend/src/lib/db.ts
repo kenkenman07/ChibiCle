@@ -1,55 +1,22 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie from "dexie";
+import type { Route } from "../modules/route/route.entity";
+import type { GpsPointsSynced } from "../modules/gpsPointSynced/gpsPointSynced.entity";
 
-export interface DbTrip {
-  id: string
-  startedAt: string
-  endedAt?: string
-  distanceM: number
-  destinationLat?: number
-  destinationLng?: number
+export class DrivingDatabase extends Dexie {
+  table_route!: Dexie.Table<Route, number>;
+  table_intersection_result!: Dexie.Table<Route, number>;
+  table_gps_points_synced!: Dexie.Table<GpsPointsSynced, number>;
+
+  constructor() {
+    super("DrivingDatabase"); // データベース名をsuperのコンストラクタに渡す
+
+    //"主キー", "インデックス(whereの候補に使える)"
+    this.version(1).stores({
+      table_route: "++id",
+      table_intersection_result: "++id",
+      table_gps_points_synced: "++id",
+    });
+  }
 }
 
-export interface DbGpsPoint {
-  id?: number
-  tripId: string
-  lat: number
-  lng: number
-  speedKmh: number
-  accuracyM: number
-  recordedAt: string
-  synced: boolean
-}
-
-export interface DbIntersectionResult {
-  id?: number
-  tripId: string
-  index: number
-  lat: number
-  lng: number
-  numRoads: number
-  stopped: boolean
-  minSpeedKmh: number | null
-}
-
-export interface DbRoute {
-  tripId: string
-  geometry: number[][]  // [[緯度, 経度], ...]
-  distanceM: number
-  durationS: number
-}
-
-const db = new Dexie('BlueTicketDriving') as Dexie & {
-  trips: EntityTable<DbTrip, 'id'>
-  gpsPoints: EntityTable<DbGpsPoint, 'id'>
-  intersectionResults: EntityTable<DbIntersectionResult, 'id'>
-  routes: EntityTable<DbRoute, 'tripId'>
-}
-
-db.version(2).stores({
-  trips: 'id, startedAt',
-  gpsPoints: '++id, tripId, synced, recordedAt',
-  intersectionResults: '++id, tripId, index, [tripId+index]',
-  routes: 'tripId',
-})
-
-export { db }
+export const db = new DrivingDatabase();

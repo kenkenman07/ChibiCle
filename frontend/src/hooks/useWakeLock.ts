@@ -1,64 +1,35 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useRef, useState } from "react"
 
-export function useWakeLock() {
-  const [isActive, setIsActive] = useState(false)
-  const sentinelRef = useRef<WakeLockSentinel | null>(null)
-  const shouldBeActiveRef = useRef(false)
-
-  const request = useCallback(async () => {
-    if (!('wakeLock' in navigator)) return
-    try {
-      sentinelRef.current = await navigator.wakeLock.request('screen')
-      shouldBeActiveRef.current = true
-      setIsActive(true)
-
-      sentinelRef.current.addEventListener('release', () => {
-        setIsActive(false)
-        sentinelRef.current = null
-      })
-    } catch {
-      // バッテリー残量不足やOSの制限
-    }
-  }, [])
-
-  const release = useCallback(async () => {
-    shouldBeActiveRef.current = false
-    if (sentinelRef.current) {
-      await sentinelRef.current.release()
-      sentinelRef.current = null
-      setIsActive(false)
-    }
-  }, [])
-
-  // タブ再表示時にWake Lockを再取得
-  useEffect(() => {
-    const onVisibilityChange = async () => {
-      if (
-        document.visibilityState === 'visible' &&
-        shouldBeActiveRef.current &&
-        !sentinelRef.current
-      ) {
-        try {
-          sentinelRef.current = await navigator.wakeLock.request('screen')
-          setIsActive(true)
-        } catch {
-          // 再取得失敗（無視）
+export const useWakeLock = () => {
+    const wakeLock = useRef<WakeLockSentinel | null>(null)
+    const [wakeLockError, setWakeLockError] = useState<string | null>(null)
+    const enableWakeLock = async () => {
+        if (!("wakelock" in navigator)) {
+            setWakeLockError("WakeLock is not supported")
+            return
         }
-      }
+        if (wakeLock.current !== null) return
+        try {
+            wakeLock.current = await navigator.wakeLock.request("screen")
+        } catch (err) {
+            if (err instanceof Error) {
+                setWakeLockError(err.message)
+            } else {
+                setWakeLockError("WakeLock Unknown Error")
+            }
+        }
     }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [])
 
-  // アンマウント時にクリーンアップ
-  useEffect(() => {
-    return () => {
-      shouldBeActiveRef.current = false
-      sentinelRef.current?.release()
+    const disableWakeLock = async () => {
+        if (wakeLock.current) {
+            await wakeLock.current.release()
+            wakeLock.current = null
+        }
     }
-  }, [])
 
-  const isSupported = 'wakeLock' in navigator
-
-  return { isActive, isSupported, request, release }
+    return {
+        wakeLockError,
+        enableWakeLock,
+        disableWakeLock,
+    }
 }

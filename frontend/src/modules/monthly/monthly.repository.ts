@@ -1,28 +1,32 @@
 import { supabase } from "../../lib/supabase";
 
 export const monthlyRepository = {
-  async find(userId: string, targetMonth: string) {
+  async find(userId: string, nowMonth: string) {
     const { data, error } = await supabase
       .from("monthly")
       .select()
       .eq("user_id", userId)
-      .eq("targetMonth", targetMonth)
-      .single();
+      .eq("target_month", nowMonth)
+      .maybeSingle();
 
     if (error != null) throw new Error(error.message);
 
     return data;
   },
 
-  async insert(userId: string, targetMonth: string) {
-    const { error } = await supabase.from("monthly").insert({
-      user_id: userId,
-      monthly_driving_times: 0,
-      monthly_violation_times: 0,
-      monthly_fines_amount: 0,
-      target_month: targetMonth,
-    });
-
+  async insert(userId: string, nowMonth: string) {
+    const { error } = await supabase.from("monthly").upsert(
+      {
+        user_id: userId,
+        target_month: nowMonth,
+        monthly_driving_times: 0,
+        monthly_safety_times: 0,
+      },
+      {
+        onConflict: "user_id,target_month",
+        ignoreDuplicates: true,
+      }
+    );
     if (error != null) throw new Error(error.message);
   },
 };

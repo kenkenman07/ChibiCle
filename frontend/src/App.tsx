@@ -1,36 +1,3 @@
-// import { BrowserRouter, Route, Routes } from "react-router-dom";
-// import Dashboard from "./pages/Dashboard";
-// import SignInPage from "./pages/SignInPage";
-// import RecordPage from "./pages/RecordPage";
-// import ResultPage from "./pages/ResultPage";
-// import HistoryPage from "./pages/HistoryPage";
-// import Layout from "./Layout";
-// import ProfilePage from "./pages/ProfilePage";
-// import SignIn from "./pages/SignIn";
-
-// function App() {
-//   return (
-//     <>
-//       <BrowserRouter>
-//         <Routes>
-//           <Route path="/signin" element={<SignIn />} />
-
-//           <Route path="/" element={<Layout />}>
-//             <Route index element={<Dashboard />} />
-//             <Route path="/record" element={<RecordPage />} />
-//             <Route path="/result" element={<ResultPage />} />
-//             <Route path="/history" element={<HistoryPage />} />
-//             <Route path="profile" element={<ProfilePage />} />
-//           </Route>
-//         </Routes>
-//       </BrowserRouter>
-//     </>
-//   );
-// }
-
-// export default App;
-
-import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -43,14 +10,35 @@ import Destination from "./pages/Destination";
 import Riding from "./pages/Riding";
 import SignIn from "./pages/SignIn";
 import Result from "./pages/Result";
-import Profile from "./pages/ProfilePage"; // 追加
+import Profile from "./pages/Profile"; // 追加
 import BottomNav from "./components/BottomNav";
+import RoleSelect from "./pages/RoleSelect";
+import { useEffect, useState } from "react";
+import { useCurrentUserStore } from "./modules/auth/current-user.state";
+import { authRepository } from "./modules/auth/auth.repository";
 
 function AppContent() {
   const location = useLocation();
 
+  const [isLoading, setIsLoading] = useState(true);
+  const currentUserStore = useCurrentUserStore();
+
+  useEffect(() => {
+    setSession();
+  }, []);
+
+  const setSession = async () => {
+    const currentUser = await authRepository.getCurrentUser();
+    currentUserStore.set(currentUser);
+    setIsLoading(false);
+  };
+
+  if (isLoading) return <div />;
+
   // ボトムナビゲーションを隠すパス
-  const hideNav = ["/riding", "/signin", "/result"].includes(location.pathname);
+  const hideNav = ["/riding", "/signin", "/result", "/role"].includes(
+    location.pathname
+  );
 
   return (
     <div className="flex justify-center bg-gray-100 h-[100dvh] font-sans text-gray-800 overflow-hidden">
@@ -58,6 +46,7 @@ function AppContent() {
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/signin" element={<SignIn />} />
+            <Route path="role" element={<RoleSelect />} />
             <Route path="/" element={<Dashboard />} />
             <Route path="/destination" element={<Destination />} />
             <Route path="/riding" element={<Riding />} />
