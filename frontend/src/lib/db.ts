@@ -12,7 +12,7 @@ export class DrivingDatabase extends Dexie {
 
     //"主キー", "インデックス(whereの候補に使える)"
     this.version(1).stores({
-      table_trip: "++id",
+      table_trip: "id",
       table_intersection_result: "++id",
       table_gps_points_synced: "++id, synced",
     });
