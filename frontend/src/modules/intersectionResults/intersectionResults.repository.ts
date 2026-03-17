@@ -1,5 +1,5 @@
 import { db } from "../../lib/db";
-import type { Route } from "../route/route.entity";
+import type { Route } from "../trip/route.entity";
 
 export const intersectionResultsRepository = {
   async insert(intersectionResults: Route) {

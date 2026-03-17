@@ -1,5 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE;
-import type { GpsPoint } from "../hooks/useGps";
+import type { GpsPoint } from "../modules/gps/gps.entity";
 
 // リクエスト・クエリ型
 // DestinationPosition, OriginPosition, GpsRequest, GeoQueryParam

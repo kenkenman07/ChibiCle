@@ -1,4 +1,4 @@
-export type Route = RouteType;
+export type Trip = TripType;
 
 //仮。どこで使われるかわからないからキムと相談
 
@@ -12,7 +12,7 @@ type Intersection = {
   min_speed_kmh: number | null;
 };
 
-type RouteType = {
+type TripType = {
   id: string;
   route: {
     geometry: LatLng[];

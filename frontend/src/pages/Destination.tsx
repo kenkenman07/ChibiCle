@@ -19,8 +19,8 @@ import {
   useMap,
 } from "react-leaflet";
 import { useDebounce } from "react-use";
-import { useRouteStore } from "../modules/route/route.state";
-import { routeRepository } from "../modules/route/route.repository";
+import { useTripStore } from "../modules/trip/trip.state";
+import { tripRepository } from "../modules/trip/trip.repository";
 import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
 import {
   fetchRoute,
@@ -111,7 +111,7 @@ export default function Destination() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isRouteSearched, setIsRouteSearched] = useState(false);
   const [position, setPosition] = useState<[number, number] | null>(null);
-  const routeStore = useRouteStore();
+  const tripStore = useTripStore();
   const [trip, setTrip] = useState<TripInfo | null>(null);
 
   const pageVariants = {
@@ -134,7 +134,7 @@ export default function Destination() {
 
   useEffect(() => {
     return () => {
-      routeRepository.delete();
+      tripRepository.delete();
       intersectionResultsRepository.delete();
     };
   }, []);
@@ -202,8 +202,8 @@ export default function Destination() {
       origin_lng: currentLocation[1],
     });
     console.log(routeData);
-    routeStore.set(routeData);
-    await routeRepository.insert(routeData);
+    tripStore.set(routeData);
+    await tripRepository.insert(routeData);
     await intersectionResultsRepository.insert(routeData);
     setIsRouteSearched(true);
   };
