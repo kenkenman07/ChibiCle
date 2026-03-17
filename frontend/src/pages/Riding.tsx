@@ -27,6 +27,7 @@ import { scoreRepository } from "../modules/score/score.repository";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import type { ScoreJson } from "../modules/score/score.entity";
 import { tripRepository } from "../modules/trip/trip.repository";
+import { currentLocationIcon } from "./Destination";
 
 // 【追加】現在地が更新されるたびにマップの中心を移動させるコンポーネント
 function MapCenterController({ center }: { center: [number, number] | null }) {
@@ -192,8 +193,7 @@ export default function Riding() {
               />
             )}
 
-            {/* 現在地のピン */}
-            <Marker position={currentPos} />
+            <Marker position={currentPos} icon={currentLocationIcon} />
           </MapContainer>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-gray-500 font-medium">

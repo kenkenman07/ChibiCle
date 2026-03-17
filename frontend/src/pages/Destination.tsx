@@ -17,6 +17,7 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
+import L from "leaflet"; // 【追加】Leaflet本体をインポート
 import { useDebounce } from "react-use";
 import { useTripStore } from "../modules/trip/trip.state";
 import { tripRepository } from "../modules/trip/trip.repository";
@@ -30,6 +31,22 @@ import {
 } from "../api/apiClient";
 
 type LatLng = [number, number];
+
+// 【追加】画像を使わないカスタムマーカー（現在地用：緑色）
+export const currentLocationIcon = L.divIcon({
+  className: "custom-div-icon",
+  html: `<div style="background-color: #48b98b; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transform: translate(-50%, -50%);"></div>`,
+  iconSize: [0, 0],
+  iconAnchor: [0, 0],
+});
+
+// 【追加】画像を使わないカスタムマーカー（目的地用：オレンジ色）
+const destinationIcon = L.divIcon({
+  className: "custom-div-icon",
+  html: `<div style="background-color: #ff8652; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transform: translate(-50%, -100%) rotate(-45deg);"></div>`,
+  iconSize: [0, 0],
+  iconAnchor: [0, 0],
+});
 
 function MapController({ center }: { center: [number, number] | null }) {
   const map = useMap();
@@ -126,7 +143,6 @@ export default function Destination() {
     [locationInput, showSuggestions]
   );
 
-  // 【改良】サジェストをタップした瞬間に createTrip まで一気に完了させる
   const handleSelectSuggestion = async (suggestion: SearchResultInfo) => {
     setLocationInput(suggestion.display_name);
     const dest: [number, number] = [suggestion.lat, suggestion.lng];
@@ -135,21 +151,17 @@ export default function Destination() {
     setPosition(dest);
     setSuggestions([]);
     setShowSuggestions(false);
-    setIsRouteSearched(false); // ルート検索状態もリセット
+    setIsRouteSearched(false);
 
-    // タップと同時にバックエンドへTrip作成リクエストを飛ばす
     await createTrip(dest);
   };
 
-  // 【改良】キーボードの「検索(Enter)」を押した時の処理
-  const handleSearchSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (locationInput && suggestions && suggestions.length > 0) {
-      // サジェストが出ている状態でエンターを押したら、1件目を自動選択してTrip作成まで行う
       await handleSelectSuggestion(suggestions[0]);
     } else if (destination && !trip) {
-      // 既に目的地は入っているがTripがない場合のフォールバック
       await createTrip(destination);
     }
 
@@ -202,11 +214,10 @@ export default function Destination() {
                 setLocationInput(e.target.value);
                 setShowSuggestions(true);
                 setDestination(null);
-                setTrip(null); // 入力し直したらTripもリセットする
+                setTrip(null);
                 setIsRouteSearched(false);
               }}
               placeholder="目的地を検索..."
-              // 【改良】送信ボタンを消したので、右側の余白(pr-12)を標準(pr-4)に戻しました
               className="w-full bg-gray-100 py-4 pl-12 pr-4 rounded-2xl outline-none focus:ring-2 focus:ring-[#48b98b] transition-all"
             />
           </form>
@@ -265,13 +276,21 @@ export default function Destination() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
+              {/* 【修正】アイコンに先ほど作成したカスタムアイコンを指定 */}
               {isRouteSearched ? (
                 <>
-                  {currentLocation && <Marker position={currentLocation} />}
-                  {destination && <Marker position={destination} />}
+                  {currentLocation && (
+                    <Marker
+                      position={currentLocation}
+                      icon={currentLocationIcon}
+                    />
+                  )}
+                  {destination && (
+                    <Marker position={destination} icon={destinationIcon} />
+                  )}
                 </>
               ) : (
-                <Marker position={position} />
+                <Marker position={position} icon={currentLocationIcon} />
               )}
 
               {isRouteSearched && (
@@ -279,6 +298,8 @@ export default function Destination() {
                   positions={
                     tripStore.trip ? tripStore.trip.route.geometry : []
                   }
+                  color="#48b98b" // 【追加】ルートの線をアプリのテーマカラー(緑)に変更
+                  weight={5}
                 />
               )}
             </MapContainer>
@@ -289,9 +310,6 @@ export default function Destination() {
           )}
         </div>
 
-        {/* trip が作成されるまではボタンを disabled（非活性）にしておくことで、
-          裏側で createTrip の API通信が終わるのを待たせる仕組みになっています。
-        */}
         {!destination ? (
           <button
             key="disabled-btn"
