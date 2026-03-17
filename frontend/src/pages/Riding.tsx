@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { StopCircle, Bike } from "lucide-react";
 import { useGps } from "../hooks/useGps";
 import { useWakeLock } from "../hooks/useWakeLock";
@@ -58,6 +58,7 @@ export default function Riding() {
   let stoppedCount: number = 0;
   const unStoppedIntersections: { lat: number; lng: number }[] = [];
   const tripStore = useTripStore();
+  const [intersectionNum, setIntersectionNum] = useState<number>(0);
 
   // routeデータを取得
   const route = trip?.route.geometry;
@@ -117,9 +118,10 @@ export default function Riding() {
 
     if (result.rerouted == true) await routeSearchAgain();
 
-    await intersectionResultsRepository.insert(result);
+    await intersectionResultsRepository.insert(result.intersection_updates);
 
     interSectionNumber += result.intersection_updates.length;
+    setIntersectionNum(interSectionNumber);
     result.intersection_updates.map((index) => {
       if (index.stopped == true) stoppedCount++;
       else unStoppedIntersections.push({ lat: index.lat, lng: index.lng });
@@ -145,7 +147,7 @@ export default function Riding() {
     tripStore.set(routeData);
     await tripRepository.insert(routeData);
     await intersectionResultsRepository.delete();
-    await intersectionResultsRepository.insert(routeData);
+    await intersectionResultsRepository.insert(routeData.route.intersections);
   };
 
   return (
@@ -226,7 +228,8 @@ export default function Riding() {
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm opacity-90">検知した交差点</span>
               <span className="font-bold text-2xl">
-                3<span className="text-sm font-normal ml-1">箇所</span>
+                {intersectionNum}
+                <span className="text-sm font-normal ml-1">箇所</span>
               </span>
             </div>
             <div className="w-full bg-black/20 rounded-full h-2">

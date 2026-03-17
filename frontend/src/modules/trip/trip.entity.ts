@@ -3,7 +3,7 @@ export type Trip = TripType;
 //仮。どこで使われるかわからないからキムと相談
 
 type LatLng = [number, number];
-type Intersection = {
+export type Intersection = {
   index: number;
   lat: number;
   lng: number;
@@ -12,12 +12,14 @@ type Intersection = {
   min_speed_kmh: number | null;
 };
 
+export type Route = {
+  geometry: LatLng[];
+  intersections: Intersection[];
+  distance_m: number;
+  duration_s: number;
+};
+
 type TripType = {
   id: string;
-  route: {
-    geometry: LatLng[];
-    intersections: Intersection[];
-    distance_m: number;
-    duration_s: number;
-  };
+  route: Route;
 };

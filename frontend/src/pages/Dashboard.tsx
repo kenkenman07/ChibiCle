@@ -14,6 +14,9 @@ import { useEffect, useState } from "react";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import type { MonthlyData } from "../modules/monthly/monthly.entity";
 import { monthlyRepository } from "../modules/monthly/monthly.repository";
+import { tripRepository } from "../modules/trip/trip.repository";
+import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
+import { gpsPointSyncedRepository } from "../modules/gpsPointSynced/gpsPointSynced.repository";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -27,6 +30,17 @@ export default function Dashboard() {
     in: { opacity: 1, y: 0 },
     out: { opacity: 0, y: -20 },
   };
+
+  //indexedDBのクリア
+  useEffect(() => {
+    const clearIndexedDB = async () => {
+      await tripRepository.delete();
+      await intersectionResultsRepository.delete();
+      await gpsPointSyncedRepository.delete();
+    };
+
+    clearIndexedDB();
+  }, []);
 
   useEffect(() => {
     const now = Date.now();

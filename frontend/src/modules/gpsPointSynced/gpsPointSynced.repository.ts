@@ -20,4 +20,8 @@ export const gpsPointSyncedRepository = {
       synced: 1,
     });
   },
+
+  async delete() {
+    await db.table_gps_points_synced.clear();
+  },
 };

@@ -5,7 +5,6 @@ import {
   PlayCircle,
   ChevronRight,
   MapPin,
-  Send,
   Route as RouteIcon,
   Navigation,
 } from "lucide-react";
@@ -26,7 +25,6 @@ import {
   fetchRoute,
   searchPlace,
   sendTrips,
-  type DestinationPosition,
   type SearchResultInfo,
   type TripInfo,
 } from "../api/apiClient";
@@ -47,7 +45,6 @@ function MapController({ center }: { center: [number, number] | null }) {
   return null;
 }
 
-// 【追加】2つの座標が両方とも画面に収まるようにカメラを調整するコンポーネント
 function RouteBoundsController({ start, end }: { start: LatLng; end: LatLng }) {
   const map = useMap();
   useEffect(() => {
@@ -55,8 +52,6 @@ function RouteBoundsController({ start, end }: { start: LatLng; end: LatLng }) {
   }, [start, end, map]);
   return null;
 }
-
-//const dummy: [number, number] = [50, 120];
 
 export default function Destination() {
   const navigate = useNavigate();
@@ -89,7 +84,6 @@ export default function Destination() {
   useEffect(() => {
     if (gps && !position) {
       setCurrentLocation([gps.lat, gps.lng]);
-
       setPosition([gps.lat, gps.lng]);
     }
   }, [gps]);
@@ -101,14 +95,13 @@ export default function Destination() {
     };
   }, []);
 
-  const createTrip = async () => {
+  const createTrip = async (destination: [number, number]) => {
     if (!destination) return;
     const tripInfo = await sendTrips({
       destination_lat: destination[0],
       destination_lng: destination[1],
     });
     setTrip(tripInfo);
-    console.log(trip?.id);
   };
 
   useDebounce(
@@ -124,7 +117,7 @@ export default function Destination() {
           limit: 6,
         });
         if (data == null) return;
-        console.log(data);
+
         setSuggestions(data);
       };
       fetchSuggestions();
@@ -133,28 +126,33 @@ export default function Destination() {
     [locationInput, showSuggestions]
   );
 
+  // 【改良】サジェストをタップした瞬間に createTrip まで一気に完了させる
   const handleSelectSuggestion = async (suggestion: SearchResultInfo) => {
     setLocationInput(suggestion.display_name);
-    setDestination([suggestion.lat, suggestion.lng]);
+    const dest: [number, number] = [suggestion.lat, suggestion.lng];
+
+    setDestination(dest);
+    setPosition(dest);
     setSuggestions([]);
     setShowSuggestions(false);
+    setIsRouteSearched(false); // ルート検索状態もリセット
 
-    const newPos: [number, number] = [suggestion.lat, suggestion.lng];
-    setPosition(newPos);
-    setIsRouteSearched(false);
-
-    console.log(destination);
+    // タップと同時にバックエンドへTrip作成リクエストを飛ばす
+    await createTrip(dest);
   };
 
-  const handleSearchSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+  // 【改良】キーボードの「検索(Enter)」を押した時の処理
+  const handleSearchSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (destination) {
-      setPosition(destination);
-      createTrip();
-    } else if (locationInput && suggestions!.length > 0) {
-      handleSelectSuggestion(suggestions![0]);
+
+    if (locationInput && suggestions && suggestions.length > 0) {
+      // サジェストが出ている状態でエンターを押したら、1件目を自動選択してTrip作成まで行う
+      await handleSelectSuggestion(suggestions[0]);
+    } else if (destination && !trip) {
+      // 既に目的地は入っているがTripがない場合のフォールバック
+      await createTrip(destination);
     }
-    console.log("おそらくdestinationがnull");
+
     setShowSuggestions(false);
   };
 
@@ -166,12 +164,11 @@ export default function Destination() {
       origin_lng: currentLocation[1],
     });
 
-    console.log(routeData);
     tripStore.set(routeData);
     setIsRouteSearched(true);
 
     await tripRepository.insert(routeData);
-    await intersectionResultsRepository.insert(routeData);
+    await intersectionResultsRepository.insert(routeData.route.intersections);
   };
 
   return (
@@ -205,41 +202,39 @@ export default function Destination() {
                 setLocationInput(e.target.value);
                 setShowSuggestions(true);
                 setDestination(null);
+                setTrip(null); // 入力し直したらTripもリセットする
                 setIsRouteSearched(false);
               }}
               placeholder="目的地を検索..."
-              className="w-full bg-gray-100 py-4 pl-12 pr-12 rounded-2xl outline-none focus:ring-2 focus:ring-[#48b98b] transition-all"
+              // 【改良】送信ボタンを消したので、右側の余白(pr-12)を標準(pr-4)に戻しました
+              className="w-full bg-gray-100 py-4 pl-12 pr-4 rounded-2xl outline-none focus:ring-2 focus:ring-[#48b98b] transition-all"
             />
-            <button
-              type="submit"
-              disabled={!locationInput}
-              className="absolute inset-y-0 right-4 flex items-center text-[#48b98b] disabled:text-gray-300 transition-colors"
-            >
-              <Send className="w-5 h-5" />
-            </button>
           </form>
 
-          {showSuggestions && suggestions!.length > 0 && locationInput && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
-            >
-              {suggestions!.map((suggestion, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleSelectSuggestion(suggestion)}
-                  className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b last:border-b-0 border-gray-50"
-                >
-                  <MapPin className="w-5 h-5 text-[#48b98b] shrink-0" />
-                  <span className="text-gray-700 text-sm truncate">
-                    {suggestion.display_name}
-                  </span>
-                </button>
-              ))}
-            </motion.div>
-          )}
+          {showSuggestions &&
+            suggestions &&
+            suggestions.length > 0 &&
+            locationInput && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+              >
+                {suggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-emerald-50 active:bg-emerald-100 transition-colors border-b last:border-b-0 border-gray-50"
+                  >
+                    <MapPin className="w-5 h-5 text-[#48b98b] shrink-0" />
+                    <span className="text-gray-700 text-sm truncate">
+                      {suggestion.display_name}
+                    </span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
         </div>
 
         <div className="bg-gray-200 rounded-3xl mb-6 relative overflow-hidden border-4 border-white shadow-inner h-72 z-10">
@@ -256,7 +251,6 @@ export default function Destination() {
               zoom={15}
               className="absolute inset-0 z-0"
             >
-              {/* 【変更】ルート検索後は2点が収まるように調整、検索前は選択した場所へ移動 */}
               {isRouteSearched && currentLocation && destination ? (
                 <RouteBoundsController
                   start={currentLocation}
@@ -271,7 +265,6 @@ export default function Destination() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              {/* 【変更】ルート検索済なら両方にマーカーを立て、未検索ならpositionのみ */}
               {isRouteSearched ? (
                 <>
                   {currentLocation && <Marker position={currentLocation} />}
@@ -281,7 +274,6 @@ export default function Destination() {
                 <Marker position={position} />
               )}
 
-              {/* 【変更】Polylineもルート検索済の時だけ表示させる */}
               {isRouteSearched && (
                 <Polyline
                   positions={
@@ -297,6 +289,9 @@ export default function Destination() {
           )}
         </div>
 
+        {/* trip が作成されるまではボタンを disabled（非活性）にしておくことで、
+          裏側で createTrip の API通信が終わるのを待たせる仕組みになっています。
+        */}
         {!destination ? (
           <button
             key="disabled-btn"
@@ -312,10 +307,11 @@ export default function Destination() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={handleSearchRoute}
-            className="w-full bg-[#126f50] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-teal-900/20 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+            disabled={trip == null}
+            className="w-full bg-[#126f50] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-teal-900/20 flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-wait"
           >
             <RouteIcon className="w-6 h-6" />
-            ルートを検索する
+            {trip == null ? "ルートを準備中..." : "ルートを検索する"}
           </motion.button>
         ) : (
           <motion.button

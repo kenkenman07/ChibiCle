@@ -1,31 +1,11 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ShieldCheck, Home, AlertTriangle } from "lucide-react";
-import { MapContainer, Marker, TileLayer, Popup } from "react-leaflet";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { scoreRepository } from "../modules/score/score.repository";
 import { useEffect, useState } from "react";
-import type { Score, ScoreJson } from "../modules/score/score.entity";
-
-// ダミーの「安全に通れなかったポイント」データ
-const unsafePoints = [
-  {
-    id: 1,
-    lat: 34.705,
-    lng: 137.733,
-    time: "14:23",
-    reason: "一時不停止の疑い",
-    locationName: "中区〇〇交差点",
-  },
-  {
-    id: 2,
-    lat: 34.7,
-    lng: 137.738,
-    time: "14:35",
-    reason: "減速不十分",
-    locationName: "南区△△交差点",
-  },
-];
+import type { ScoreJson } from "../modules/score/score.entity";
 
 export default function Result() {
   const navigate = useNavigate();
@@ -35,6 +15,16 @@ export default function Result() {
   const [date, setDate] = useState<number | null>(null);
   const [hours, setHours] = useState<number | null>(null);
   const [safetyTimes, setSafetyTimes] = useState<number | null>(null);
+  const [intersectionNumber, setInterSectionNumber] = useState<number | null>(
+    null
+  );
+  const [unsafePoints, setUnsafePoints] = useState<
+    | {
+        lat: number;
+        lng: number;
+      }[]
+    | null
+  >(null);
 
   const pageVariants = {
     initial: { opacity: 0, y: 50 },
@@ -53,8 +43,11 @@ export default function Result() {
     const date = new Date(data.created_at);
     setDate(date.getDate());
     setHours(date.getHours());
+
     const score = data.score as ScoreJson;
     setSafetyTimes(score.stoppedCount);
+    setInterSectionNumber(score.intersectionNumber);
+    setUnsafePoints(score.notSafetyIntersections);
   };
 
   return (
@@ -103,7 +96,7 @@ export default function Result() {
             <div className="bg-gray-50 p-3 rounded-2xl flex flex-col items-center">
               <span className="text-xs text-gray-400 mb-1">交差点通過</span>
               <span className="font-bold text-gray-700 text-lg">
-                50
+                {intersectionNumber}
                 <span className="text-sm font-normal ml-0.5">箇所</span>
               </span>
             </div>
@@ -141,22 +134,16 @@ export default function Result() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               {/* 危険だった箇所をプロット */}
-              {unsafePoints.map((point) => (
-                <Marker key={point.id} position={[point.lat, point.lng]}>
-                  <Popup>
-                    <div className="text-sm font-bold text-[#ff8652]">
-                      {point.reason}
-                    </div>
-                    <div className="text-xs text-gray-500">{point.time}</div>
-                  </Popup>
-                </Marker>
-              ))}
+              {unsafePoints &&
+                unsafePoints.map((point) => (
+                  <Marker position={[point.lat, point.lng]}></Marker>
+                ))}
             </MapContainer>
           </div>
 
           {/* 要注意ポイントのリスト表示 */}
           <div className="flex flex-col gap-3">
-            {unsafePoints.length === 0 && (
+            {unsafePoints && unsafePoints.length === 0 && (
               <div className="bg-emerald-50 rounded-2xl p-4 text-center border border-emerald-100">
                 <ShieldCheck className="w-6 h-6 text-[#48b98b] mx-auto mb-2" />
                 <p className="text-sm text-emerald-700 font-bold">
