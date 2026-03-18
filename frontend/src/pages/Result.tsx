@@ -32,13 +32,18 @@ export default function Result() {
     out: { opacity: 0, y: -50 },
   };
 
+  const mapCenter: [number, number] =
+    unsafePoints && unsafePoints.length > 0
+      ? [unsafePoints[0].lat, unsafePoints[0].lng]
+      : [34.7024, 137.7353];
+
   useEffect(() => {
+    if (!currentUser) return;
     fetchResult();
-  }, []);
+  }, [currentUser]);
 
   const fetchResult = async () => {
-    if (!currentUser) return;
-    const data = await scoreRepository.find(currentUser.id);
+    const data = await scoreRepository.find(currentUser!.id);
     console.log(data);
     if (data == null) return;
     const date = new Date(data.created_at);
@@ -133,7 +138,7 @@ export default function Result() {
           {/* マップ表示エリア */}
           <div className="bg-gray-200 rounded-3xl relative overflow-hidden border-4 border-white shadow-inner h-64 z-10">
             <MapContainer
-              center={[34.7024, 137.7353]} // 浜松駅周辺を中心に設定
+              center={mapCenter} // 浜松駅周辺を中心に設定
               zoom={14}
               className="absolute inset-0 z-0"
             >
