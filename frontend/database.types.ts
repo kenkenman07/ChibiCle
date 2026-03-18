@@ -44,24 +44,6 @@ export type Database = {
         }
         Relationships: []
       }
-      role: {
-        Row: {
-          created_at: string
-          id: string
-          role: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: string
-        }
-        Relationships: []
-      }
       score: {
         Row: {
           created_at: string
@@ -76,6 +58,24 @@ export type Database = {
         Update: {
           created_at?: string
           score?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_line: {
+        Row: {
+          created_at: string
+          line_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          line_id?: string | null
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          line_id?: string | null
           user_id?: string
         }
         Relationships: []
