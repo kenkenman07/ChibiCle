@@ -127,8 +127,6 @@ export default function Riding() {
       if (index.stopped == true) stoppedCount++;
       else unStoppedIntersections.push({ lat: index.lat, lng: index.lng });
     });
-
-    console.log(result);
   };
 
   const recordScore = async () => {
@@ -144,7 +142,7 @@ export default function Riding() {
   const routeSearchAgain = async () => {
     if (trip == null) return;
     const routeData: RouteInfo = await reRoute(trip?.id);
-    //console.log(routeData);
+
     tripStore.set(routeData);
     await tripRepository.insert(routeData);
     await intersectionResultsRepository.delete();

@@ -16,6 +16,7 @@ import RoleSelect from "./pages/RoleSelect";
 import { useEffect, useState } from "react";
 import { useCurrentUserStore } from "./modules/auth/current-user.state";
 import { authRepository } from "./modules/auth/auth.repository";
+import Layout from "./Layout";
 
 function AppContent() {
   const location = useLocation();
@@ -51,11 +52,14 @@ function AppContent() {
           <Routes location={location} key={location.pathname}>
             <Route path="/signin" element={<SignIn />} />
             <Route path="role" element={<RoleSelect />} />
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/destination" element={<Destination />} />
-            <Route path="/riding" element={<Riding />} />
-            <Route path="/result" element={<Result />} />
-            <Route path="/profile" element={<Profile />} />
+
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="/destination" element={<Destination />} />
+              <Route path="/riding" element={<Riding />} />
+              <Route path="/result" element={<Result />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
           </Routes>
         </AnimatePresence>
 

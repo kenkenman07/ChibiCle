@@ -20,9 +20,9 @@ export default function Result() {
   );
   const [unsafePoints, setUnsafePoints] = useState<
     | {
-      lat: number;
-      lng: number;
-    }[]
+        lat: number;
+        lng: number;
+      }[]
     | null
   >(null);
 
@@ -34,11 +34,12 @@ export default function Result() {
 
   useEffect(() => {
     fetchResult();
-  });
+  }, []);
 
   const fetchResult = async () => {
     if (!currentUser) return;
     const data = await scoreRepository.find(currentUser.id);
+    console.log(data);
     if (data == null) return;
     const date = new Date(data.created_at);
     setDate(date.getDate());
