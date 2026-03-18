@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ShieldCheck, Home, AlertTriangle } from "lucide-react";
-//import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { scoreRepository } from "../modules/score/score.repository";
 import { useEffect, useState } from "react";
 import type { ScoreJson } from "../modules/score/score.entity";
+import { currentLocationIcon } from "./Destination";
 
 export default function Result() {
   const navigate = useNavigate();
@@ -132,8 +133,6 @@ export default function Result() {
 
           {/* マップ表示エリア */}
 
-          {/** 
-           * 
           <div className="bg-gray-200 rounded-3xl relative overflow-hidden border-4 border-white shadow-inner h-64 z-10">
             <MapContainer
               center={[34.7024, 137.7353]} // 浜松駅周辺を中心に設定
@@ -144,13 +143,16 @@ export default function Result() {
                 attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
+              {/* 危険だった箇所をプロット */}
               {unsafePoints &&
                 unsafePoints.map((point) => (
-                  <Marker position={[point.lat, point.lng]}></Marker>
+                  <Marker
+                    position={[point.lat, point.lng]}
+                    icon={currentLocationIcon}
+                  ></Marker>
                 ))}
             </MapContainer>
           </div>
-                */}
 
           {/* 要注意ポイントのリスト表示 */}
           <div className="flex flex-col gap-3">
