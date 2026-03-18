@@ -20,6 +20,7 @@ export type Database = {
           id: number
           monthly_driving_times: number
           monthly_safety_times: number
+          monthly_score: number
           target_month: string
           user_id: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           id?: number
           monthly_driving_times: number
           monthly_safety_times: number
+          monthly_score: number
           target_month: string
           user_id?: string
         }
@@ -36,6 +38,7 @@ export type Database = {
           id?: number
           monthly_driving_times?: number
           monthly_safety_times?: number
+          monthly_score?: number
           target_month?: string
           user_id?: string
         }
@@ -82,7 +85,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_monthly: {
+        Args: {
+          p_driving_times: number
+          p_safety_times: number
+          p_score: number
+          p_target_month: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
