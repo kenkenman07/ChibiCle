@@ -18,6 +18,7 @@ export const scoreRepository = {
     const { error } = await supabase.from("score").upsert({
       user_id: userId,
       score: score,
+      created_at: new Date().toISOString(),
     });
     if (error != null) throw new Error(error.message);
   },

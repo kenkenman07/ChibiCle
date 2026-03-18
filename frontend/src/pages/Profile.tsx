@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, Users, ShieldAlert } from "lucide-react";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { authRepository } from "../modules/auth/auth.repository";
+import { useRoleStore } from "../modules/role/role.state";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function Profile() {
   };
 
   const currentUserStore = useCurrentUserStore();
+  const roleStore = useRoleStore();
 
   const handleLogout = async () => {
     await authRepository.signOut();
@@ -45,20 +47,22 @@ export default function Profile() {
             <div className="p-2 bg-emerald-50 rounded-xl">
               <Users className="w-6 h-6 text-[#126f50]" />
             </div>
-            <h2 className="text-lg font-bold text-gray-800">
-              連携中の保護者アカウント
-            </h2>
+            {roleStore.role == "parent" ? (
+              <h2 className="text-lg font-bold text-gray-800">
+                保護者アカウント
+              </h2>
+            ) : (
+              <h2 className="text-lg font-bold text-gray-800">
+                子供用アカウント
+              </h2>
+            )}
           </div>
 
           {/* 保護者の情報表示 */}
           <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl mb-5 border border-gray-100">
-            <div className="w-12 h-12 bg-[#ff8652] rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner">
-              母
-            </div>
             <div>
-              <p className="text-base font-bold text-gray-700">浜松 花子</p>
               <p className="text-sm text-gray-500 mt-0.5">
-                hanako.h***@gmail.com
+                {currentUserStore.currentUser?.email}
               </p>
             </div>
           </div>
