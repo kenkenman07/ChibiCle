@@ -143,8 +143,9 @@ export default function Riding() {
       await intersectionResultsRepository.find();
     if (data == null) return;
     const stoppedData = data.filter((i) => i.stopped);
+    const passedData = data.filter((i) => i.min_speed_kmh != null);
     const score: ScoreJson = {
-      intersectionNumber: data.length,
+      intersectionNumber: passedData.length,
       stoppedCount: stoppedData.length,
       notSafetyIntersections: data.filter((i) => !i.stopped),
     };
