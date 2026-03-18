@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { StopCircle, Bike } from "lucide-react";
 import { useGps } from "../hooks/useGps";
 import { useWakeLock } from "../hooks/useWakeLock";
@@ -28,6 +28,7 @@ import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import type { ScoreJson } from "../modules/score/score.entity";
 import { tripRepository } from "../modules/trip/trip.repository";
 import { currentLocationIcon } from "./Destination";
+import type { IntersectionResults } from "../modules/intersectionResults/intersectionResults.entity";
 
 // 【追加】現在地が更新されるたびにマップの中心を移動させるコンポーネント
 function MapCenterController({ center }: { center: [number, number] | null }) {
@@ -56,10 +57,7 @@ export default function Riding() {
   const { currentGps } = useGpsStore();
   const { currentUser } = useCurrentUserStore();
 
-  const [stoppedCount, setStoppedCount] = useState<number>(0);
-  const unStoppedIntersections = useRef<{ lat: number; lng: number }[]>([]);
   const tripStore = useTripStore();
-  const [intersectionNumber, setIntersectionNumber] = useState<number>(0);
 
   // routeデータを取得
   const route = trip?.route.geometry;
@@ -125,21 +123,19 @@ export default function Riding() {
     if (result.rerouted == true) await routeSearchAgain();
 
     await intersectionResultsRepository.insert(result.intersection_updates);
-
-    setIntersectionNumber((pre) => pre + result.intersection_updates.length);
-    result.intersection_updates.map((index) => {
-      if (index.stopped == true) setStoppedCount((pre) => pre + 1);
-      else
-        unStoppedIntersections.current.push({ lat: index.lat, lng: index.lng });
-    });
   };
 
   const recordScore = async () => {
     if (currentUser == null) return;
+
+    const data: IntersectionResults =
+      await intersectionResultsRepository.find();
+    if (data == null) return;
+    const stoppedData = data.filter((i) => i.stopped);
     const score: ScoreJson = {
-      intersectionNumber: intersectionNumber,
-      stoppedCount: stoppedCount,
-      notSafetyIntersections: unStoppedIntersections.current,
+      intersectionNumber: data.length,
+      stoppedCount: stoppedData.length,
+      notSafetyIntersections: data.filter((i) => !i.stopped),
     };
     await scoreRepository.update(currentUser.id, score);
   };
@@ -224,16 +220,6 @@ export default function Riding() {
               <p className="text-[#a5d6c5] text-xs">
                 交差点での安全確認を忘れずに！
               </p>
-            </div>
-          </div>
-
-          <div className="bg-white/10 p-5 rounded-3xl w-full max-w-sm backdrop-blur-md border border-white/20 mb-8 shadow-inner">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-sm opacity-90">検知した交差点</span>
-              <span className="font-bold text-2xl">
-                {intersectionNumber}
-                <span className="text-sm font-normal ml-1">箇所</span>
-              </span>
             </div>
           </div>
 

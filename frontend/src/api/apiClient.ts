@@ -29,7 +29,7 @@ export type DistanceM = {
 
 // レスポンス型
 // レスポンス型では型定義名の語尾にInfoを入れた
-type Intersection = {
+export type Intersection = {
   index: number;
   lat: number;
   lng: number;
