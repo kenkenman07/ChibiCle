@@ -154,7 +154,12 @@ export default function Riding() {
       scorePercent: scorePercent,
       intersectionNumber: passedData.length,
       stoppedCount: stoppedData.length,
-      notSafetyIntersections: data.filter((i) => !i.stopped),
+      notSafetyIntersections: passedData
+        .filter((i) => !i.stopped)
+        .map((i) => ({
+          lat: i.lat,
+          lng: i.lng,
+        })),
     };
     await scoreRepository.update(currentUser.id, score);
 
