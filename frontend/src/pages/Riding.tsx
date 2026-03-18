@@ -28,6 +28,7 @@ import type { ScoreJson } from "../modules/score/score.entity";
 import { tripRepository } from "../modules/trip/trip.repository";
 import { currentLocationIcon } from "./Destination";
 import type { IntersectionResults } from "../modules/intersectionResults/intersectionResults.entity";
+import { monthlyRepository } from "../modules/monthly/monthly.repository";
 
 function MapCenterController({ center }: { center: [number, number] | null }) {
   const map = useMap();
@@ -144,12 +145,33 @@ export default function Riding() {
     if (data == null) return;
     const stoppedData = data.filter((i) => i.stopped);
     const passedData = data.filter((i) => i.min_speed_kmh != null);
+
+    const scorePercent = Math.round(
+      (stoppedData.length / passedData.length) * 100
+    );
+
     const score: ScoreJson = {
+      scorePercent: scorePercent,
       intersectionNumber: passedData.length,
       stoppedCount: stoppedData.length,
       notSafetyIntersections: data.filter((i) => !i.stopped),
     };
     await scoreRepository.update(currentUser.id, score);
+
+    const now = Date.now();
+    const date = new Date(now);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+
+    const nowMonth = `${year}-${month}`;
+
+    await monthlyRepository.update(
+      currentUser.id,
+      nowMonth,
+      1,
+      stoppedData.length,
+      scorePercent
+    );
   };
 
   const routeSearchAgain = async () => {
@@ -164,10 +186,6 @@ export default function Riding() {
     // 【追加】リルート時にも交差点情報をリセット・再取得
     await fetchIntersectionPassed();
   };
-
-  // プログレスバーの計算（安全通過率）
-  const safePercentage =
-    evaluatedCount > 0 ? Math.min(100, (safeCount / evaluatedCount) * 100) : 0;
 
   return (
     <motion.div
@@ -263,14 +281,6 @@ export default function Riding() {
                   </span>
                 </div>
               </div>
-            </div>
-
-            {/* プログレスバー (検知した交差点のうち、どれだけ安全に通過できたか) */}
-            <div className="w-full bg-black/20 rounded-full h-2 relative overflow-hidden mt-1">
-              <div
-                className="bg-[#48b98b] h-full rounded-full shadow-[0_0_10px_rgba(72,185,139,0.5)] transition-all duration-700 ease-out"
-                style={{ width: `${safePercentage}%` }}
-              ></div>
             </div>
           </div>
 
