@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { StopCircle, Bike, Timer } from "lucide-react"; // Timerアイコンを追加
+import { StopCircle, Bike, ShieldCheck } from "lucide-react"; // ShieldCheckを追加
 import { useGps } from "../hooks/useGps";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useGpsStore } from "../modules/gps/gps.state";
@@ -62,29 +62,26 @@ export default function Riding() {
     ? [currentGps.lat, currentGps.lng]
     : null;
 
-  // 【追加】経過時間のState
-  const [elapsedTime, setElapsedTime] = useState(0);
+  // 【追加】交差点の検知数・安全通過数のState
+  const [evaluatedCount, setEvaluatedCount] = useState(0);
+  const [safeCount, setSafeCount] = useState(0);
 
-  // 【追加】1秒ごとに経過時間をカウントアップするタイマー
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const fetchIntersectionPassed = async () => {
+    const data: IntersectionResults =
+      await intersectionResultsRepository.find();
+    if (data) {
+      const passedData = data.filter((i) => i.min_speed_kmh != null);
+      setEvaluatedCount(passedData.length);
 
-  // 【追加】秒数を「MM:SS」の形式にフォーマットする関数
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
+      const stoppedData = data.filter((i) => i.stopped === true);
+      setSafeCount(stoppedData.length);
+    }
   };
 
   useEffect(() => {
     enableWakeLock();
     startTracking();
+    fetchIntersectionPassed(); // 初期表示時にも取得
     return () => {
       stopTracking();
       disableWakeLock();
@@ -134,6 +131,9 @@ export default function Riding() {
     if (result.rerouted == true) await routeSearchAgain();
 
     await intersectionResultsRepository.insert(result.intersection_updates);
+
+    // 【追加】GPSデータ送信後に最新の交差点情報を再取得してUIを更新
+    await fetchIntersectionPassed();
   };
 
   const recordScore = async () => {
@@ -160,7 +160,14 @@ export default function Riding() {
     await tripRepository.insert(routeData);
     await intersectionResultsRepository.delete();
     await intersectionResultsRepository.insert(routeData.route.intersections);
+
+    // 【追加】リルート時にも交差点情報をリセット・再取得
+    await fetchIntersectionPassed();
   };
+
+  // プログレスバーの計算（安全通過率）
+  const safePercentage =
+    evaluatedCount > 0 ? Math.min(100, (safeCount / evaluatedCount) * 100) : 0;
 
   return (
     <motion.div
@@ -231,15 +238,39 @@ export default function Riding() {
           </div>
 
           <div className="bg-white/10 p-5 rounded-3xl w-full backdrop-blur-md border border-white/20 mb-8 shadow-inner">
-            {/* 【追加】経過時間の表示エリア */}
-            <div className="flex justify-between items-center  border-white/10 pb-4">
-              <div className="flex items-center gap-2">
-                <Timer className="w-5 h-5 text-[#a5d6c5]" />
-                <span className="text-sm opacity-90">経過時間</span>
+            {/* 【変更】交差点の検知数 と 安全に通過した数 を並べて表示 */}
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <div className="flex flex-col">
+                <span className="text-xs opacity-80 mb-1">検知した交差点</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-bold text-2xl">{evaluatedCount}</span>
+                  <span className="text-sm font-normal opacity-80">箇所</span>
+                </div>
               </div>
-              <span className="font-mono font-bold text-3xl tracking-wider">
-                {formatTime(elapsedTime)}
-              </span>
+              <div className="flex flex-col border-l border-white/10 pl-4">
+                <div className="flex items-center gap-1 mb-1">
+                  <ShieldCheck className="w-3 h-3 text-[#48b98b]" />
+                  <span className="text-xs font-bold text-[#a5d6c5]">
+                    安全に通過
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-bold text-2xl text-[#48b98b]">
+                    {safeCount}
+                  </span>
+                  <span className="text-sm font-normal text-[#a5d6c5]">
+                    箇所
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* プログレスバー (検知した交差点のうち、どれだけ安全に通過できたか) */}
+            <div className="w-full bg-black/20 rounded-full h-2 relative overflow-hidden mt-1">
+              <div
+                className="bg-[#48b98b] h-full rounded-full shadow-[0_0_10px_rgba(72,185,139,0.5)] transition-all duration-700 ease-out"
+                style={{ width: `${safePercentage}%` }}
+              ></div>
             </div>
           </div>
 
