@@ -3,7 +3,8 @@ import type { Intersection, Trip } from "../modules/trip/trip.entity";
 import type { GpsPointsSynced } from "../modules/gpsPointSynced/gpsPointSynced.entity";
 
 export class DrivingDatabase extends Dexie {
-  table_trip!: Dexie.Table<Trip, number>;
+  // Trip uses string id key
+  table_trip!: Dexie.Table<Trip, string>;
   table_intersection_result!: Dexie.Table<Intersection[], number>;
   table_gps_points_synced!: Dexie.Table<GpsPointsSynced, number>;
 
