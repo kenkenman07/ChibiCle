@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ShieldCheck, Home, AlertTriangle } from "lucide-react";
-import { MapContainer, Marker, TileLayer } from "react-leaflet";
+//import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { scoreRepository } from "../modules/score/score.repository";
 import { useEffect, useState } from "react";
