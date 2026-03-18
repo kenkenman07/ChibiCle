@@ -82,6 +82,8 @@ export default function Riding() {
     if (gps == null) return;
     gpsStore.set(gps);
 
+    setIntersectionNumber((pre) => pre + 1);
+
     gpsPointSyncedRepository.insert({
       point: gps,
       synced: 0,
@@ -126,7 +128,7 @@ export default function Riding() {
 
     await intersectionResultsRepository.insert(result.intersection_updates);
 
-    setIntersectionNumber((pre) => pre + result.intersection_updates.length);
+    //setIntersectionNumber((pre) => pre + result.intersection_updates.length);
     result.intersection_updates.map((index) => {
       if (index.stopped == true) setStoppedCount((pre) => pre + 1);
       else
