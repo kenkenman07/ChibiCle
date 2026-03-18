@@ -117,7 +117,7 @@ export default function Dashboard() {
         </div>
 
         <h1 className="text-3xl font-bold text-white relative z-10 tracking-wide">
-          Aokiri Drive(仮)
+          ChibiCle
         </h1>
         {/* 【追加】ロールによってサブタイトルを変更 */}
         <p className="text-[#a5d6c5] mt-1 relative z-10">
