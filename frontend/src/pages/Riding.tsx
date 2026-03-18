@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StopCircle, Bike } from "lucide-react";
 import { useGps } from "../hooks/useGps";
 import { useWakeLock } from "../hooks/useWakeLock";
@@ -55,11 +55,11 @@ export default function Riding() {
   const gpsStore = useGpsStore();
   const { currentGps } = useGpsStore();
   const { currentUser } = useCurrentUserStore();
-  let interSectionNumber: number = 0;
-  let stoppedCount: number = 0;
-  const unStoppedIntersections: { lat: number; lng: number }[] = [];
+
+  const [stoppedCount, setStoppedCount] = useState<number>(0);
+  const unStoppedIntersections = useRef<{ lat: number; lng: number }[]>([]);
   const tripStore = useTripStore();
-  const [intersectionNum, setIntersectionNum] = useState<number>(0);
+  const [intersectionNumber, setIntersectionNumber] = useState<number>(0);
 
   // routeデータを取得
   const route = trip?.route.geometry;
@@ -107,34 +107,39 @@ export default function Riding() {
     if (trip == null) return;
     const gpsPoints = await gpsPointSyncedRepository.findUnSynced();
 
-    gpsPoints.map(async (p) => {
-      await gpsPointSyncedRepository.update(p.id!);
-    });
-
+    if (gpsPoints.length == 0) return;
     const sendData = gpsPoints.map((p) => p.point);
     const result: GpsInfo = await sendCurrentLocation({
       trip_id: trip.id,
       points: sendData,
     });
 
+    // gpsPoints.map(async (p) => {
+    //   await gpsPointSyncedRepository.update(p.id!);
+    // });
+
+    await Promise.all(
+      gpsPoints.map((p) => gpsPointSyncedRepository.update(p.id!))
+    );
+
     if (result.rerouted == true) await routeSearchAgain();
 
     await intersectionResultsRepository.insert(result.intersection_updates);
 
-    interSectionNumber += result.intersection_updates.length;
-    setIntersectionNum(interSectionNumber);
+    setIntersectionNumber((pre) => pre + result.intersection_updates.length);
     result.intersection_updates.map((index) => {
-      if (index.stopped == true) stoppedCount++;
-      else unStoppedIntersections.push({ lat: index.lat, lng: index.lng });
+      if (index.stopped == true) setStoppedCount((pre) => pre + 1);
+      else
+        unStoppedIntersections.current.push({ lat: index.lat, lng: index.lng });
     });
   };
 
   const recordScore = async () => {
     if (currentUser == null) return;
     const score: ScoreJson = {
-      intersectionNumber: interSectionNumber,
+      intersectionNumber: intersectionNumber,
       stoppedCount: stoppedCount,
-      notSafetyIntersections: unStoppedIntersections,
+      notSafetyIntersections: unStoppedIntersections.current,
     };
     await scoreRepository.update(currentUser.id, score);
   };
@@ -226,12 +231,9 @@ export default function Riding() {
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm opacity-90">検知した交差点</span>
               <span className="font-bold text-2xl">
-                {intersectionNum}
+                {intersectionNumber}
                 <span className="text-sm font-normal ml-1">箇所</span>
               </span>
-            </div>
-            <div className="w-full bg-black/20 rounded-full h-2">
-              <div className="bg-[#48b98b] h-2 rounded-full w-1/3 shadow-[0_0_10px_rgba(72,185,139,0.5)]"></div>
             </div>
           </div>
 
