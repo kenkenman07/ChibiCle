@@ -55,7 +55,7 @@ export default function SignIn() {
           <Bike className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-4xl font-bold text-white mb-3 tracking-wider drop-shadow-md">
-          Aokiri Drive
+          ChibiCle
         </h1>
         <p className="text-[#a5d6c5] text-center font-medium leading-relaxed">
           自転車の安全な走行をサポート。
