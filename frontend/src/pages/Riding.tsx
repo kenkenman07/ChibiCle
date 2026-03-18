@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { StopCircle, Bike, Timer, ShieldCheck } from "lucide-react"; // ShieldCheckを追加
+import { StopCircle, Bike, ShieldCheck } from "lucide-react"; // ShieldCheckを追加
 import { useGps } from "../hooks/useGps";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useGpsStore } from "../modules/gps/gps.state";
@@ -62,28 +62,9 @@ export default function Riding() {
     ? [currentGps.lat, currentGps.lng]
     : null;
 
-  // 経過時間のState
-  const [elapsedTime, setElapsedTime] = useState(0);
-
   // 【追加】交差点の検知数・安全通過数のState
   const [evaluatedCount, setEvaluatedCount] = useState(0);
   const [safeCount, setSafeCount] = useState(0);
-
-  // 1秒ごとに経過時間をカウントアップするタイマー
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
 
   const fetchIntersectionPassed = async () => {
     const data: IntersectionResults =
