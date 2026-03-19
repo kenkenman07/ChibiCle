@@ -16,13 +16,13 @@ export default function LineLinkButton() {
   }, [currentUser]);
 
   useEffect(() => {
-    const initLiff = async () => {
+    const init = async () => {
       const liff = await initLiff();
 
       console.log(liff);
     };
 
-    initLiff();
+    init();
   }, []);
 
   const checkLinkStatus = async () => {
