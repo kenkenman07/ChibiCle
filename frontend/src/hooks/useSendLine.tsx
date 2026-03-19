@@ -8,12 +8,16 @@ const useSendLine = () => {
   const sendLine = async () => {
     if (!currentUser) return;
 
-    const data = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
+
+    console.log(data.session?.access_token);
+
+    if (data.session?.access_token == null) return;
 
     const { error } = await supabase.functions.invoke("notify-parent", {
       body: { user_id: currentUser.id },
       headers: {
-        Authorization: `Bearer ${data.data.session?.access_token}`,
+        Authorization: `Bearer ${data.session?.access_token}`,
       },
     });
 
