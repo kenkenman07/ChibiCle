@@ -43,14 +43,18 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const now = Date.now();
-    const date = new Date(now);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
+    const initMonthlyData = async () => {
+      const now = Date.now();
+      const date = new Date(now);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
 
-    const nowMonth = `${year}-${month}`;
-    insertNewMonth(nowMonth);
-    fetchMonthlyData(nowMonth);
+      const nowMonth = `${year}-${month}`;
+      await insertNewMonth(nowMonth);
+      await fetchMonthlyData(nowMonth);
+    };
+
+    initMonthlyData();
   }, [currentUser]);
 
   const fetchMonthlyData = async (nowMonth: string) => {

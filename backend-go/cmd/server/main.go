@@ -30,11 +30,14 @@ func main() {
 	}
 
 	// 共有HTTPクライアント（外部API呼び出し用）
-	// コネクションプールを明示的に設定し，User-Agent を自動付与する
+	// コネクションプールを明示的に設定し，User-Agent を自動付与する．
+	// ForceAttemptHTTP2 により TLS 接続時に HTTP/2 ネゴシエーション（ALPN）を試みる．
+	// DisableCompression=false（デフォルト）により Accept-Encoding: gzip が自動付与される．
 	transport := &http.Transport{
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 20,
 		IdleConnTimeout:     30 * time.Second,
+		ForceAttemptHTTP2:   true,
 	}
 	httpClient := &http.Client{
 		Timeout: 15 * time.Second,
@@ -46,11 +49,12 @@ func main() {
 
 	// アダプター層: インターフェースの具体的な実装を生成
 	repo := adapter.NewInMemoryRepository() // 全リポジトリのインメモリ実装
-	osrm := adapter.NewOsrmGateway(         // OSRM + Overpass（ルーティング + 公道判定）
+	osrm := adapter.NewOsrmGateway(         // OSRM + Overpass（ルーティング + 公道/信号判定）
 		settings.OsrmBaseURL,
 		settings.OsrmProfile,
 		settings.IntersectionMinRoads,
 		settings.FilterNonPublicRoads,
+		settings.FilterSignalizedIntersections,
 		settings.OverpassAPIURL,
 		httpClient,
 	)
@@ -81,7 +85,7 @@ func main() {
 		AllowCredentials: true,
 	}
 	if settings.CorsAllowAll {
-		corsOpts.AllowedOrigins = []string{"*"}
+		corsOpts.AllowOriginFunc = func(r *http.Request, origin string) bool { return true }
 	} else {
 		corsOpts.AllowedOrigins = settings.CorsOrigins
 	}
@@ -96,7 +100,7 @@ func main() {
 	// ヘルスチェックエンドポイント
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok"}`))
+		w.Write([]byte(`{"status":"ok","version":"v2-signal-filter"}`))
 	})
 
 	// サーバー起動

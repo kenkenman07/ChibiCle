@@ -18,11 +18,11 @@ type gpsBatchRequest struct {
 
 // gpsPointIn は1件のGPSポイントの入力形式．
 type gpsPointIn struct {
-	Lat        float64 `json:"lat"`
-	Lng        float64 `json:"lng"`
-	SpeedKmh   float64 `json:"speed_kmh"`
-	AccuracyM  float64 `json:"accuracy_m"`
-	RecordedAt string  `json:"recorded_at"`
+	Lat        float64  `json:"lat"`
+	Lng        float64  `json:"lng"`
+	SpeedKmh   *float64 `json:"speed_kmh"`   // null = 速度取得不可（停止とは区別する）
+	AccuracyM  float64  `json:"accuracy_m"`
+	RecordedAt string   `json:"recorded_at"`
 }
 
 // --- レスポンス型 ---
@@ -34,9 +34,12 @@ type gpsBatchResponse struct {
 	Rerouted            bool                   `json:"rerouted"`             // 経路逸脱によるリルートが発生したか
 }
 
-// intersectionUpdateOut は変化のあった交差点の更新情報．
+// intersectionUpdateOut は各交差点の現在の判定状態．
 type intersectionUpdateOut struct {
 	Index       int      `json:"index"`
+	Lat         float64  `json:"lat"`
+	Lng         float64  `json:"lng"`
+	NumRoads    int      `json:"num_roads"`
 	Stopped     bool     `json:"stopped"`
 	MinSpeedKmh *float64 `json:"min_speed_kmh"`
 }
@@ -66,15 +69,15 @@ func (h *GpsHandler) ReceiveGps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// リクエスト型 → ドメインモデルに変換
-	points := make([]domain.GpsPoint, len(req.Points))
-	for i, p := range req.Points {
-		points[i] = domain.GpsPoint{
+	points := make([]domain.GpsPoint, 0, len(req.Points))
+	for _, p := range req.Points {
+		points = append(points, domain.GpsPoint{
 			Lat:        p.Lat,
 			Lng:        p.Lng,
 			SpeedKmh:   p.SpeedKmh,
 			AccuracyM:  p.AccuracyM,
 			RecordedAt: p.RecordedAt,
-		}
+		})
 	}
 
 	// ユースケースを実行（保存→リルート判定→一時停止判定）
@@ -84,19 +87,17 @@ func (h *GpsHandler) ReceiveGps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 変化のあった交差点のみ抽出してレスポンスに含める
-	var updates []intersectionUpdateOut
-	for _, res := range result.IntersectionResults {
-		if res.Stopped || res.MinSpeedKmh != nil {
-			updates = append(updates, intersectionUpdateOut{
-				Index:       res.Intersection.Index,
-				Stopped:     res.Stopped,
-				MinSpeedKmh: res.MinSpeedKmh,
-			})
+	// 全交差点の現在の判定状態を返す（フロントが完全な状態を持てるようにする）
+	updates := make([]intersectionUpdateOut, len(result.IntersectionResults))
+	for i, res := range result.IntersectionResults {
+		updates[i] = intersectionUpdateOut{
+			Index:       res.Intersection.Index,
+			Lat:         res.Intersection.Lat,
+			Lng:         res.Intersection.Lng,
+			NumRoads:    res.Intersection.NumRoads,
+			Stopped:     res.Stopped,
+			MinSpeedKmh: res.MinSpeedKmh,
 		}
-	}
-	if updates == nil {
-		updates = []intersectionUpdateOut{} // JSON で null ではなく空配列を返す
 	}
 
 	writeJSON(w, http.StatusOK, gpsBatchResponse{

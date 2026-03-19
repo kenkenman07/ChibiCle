@@ -7,6 +7,7 @@ import {
   MapPin,
   Route as RouteIcon,
   Navigation,
+  Loader2,
 } from "lucide-react";
 import { useGps } from "../hooks/useGps";
 import { useEffect, useState } from "react";
@@ -26,6 +27,7 @@ import {
   fetchRoute,
   searchPlace,
   sendTrips,
+  type RouteInfo,
   type SearchResultInfo,
   type TripInfo,
 } from "../api/apiClient";
@@ -87,6 +89,7 @@ export default function Destination() {
   const [position, setPosition] = useState<[number, number] | null>(null);
   const tripStore = useTripStore();
   const [trip, setTrip] = useState<TripInfo | null>(null);
+  const [route, setRoute] = useState<RouteInfo | null>(null);
 
   const pageVariants = {
     initial: { opacity: 0, x: 50 },
@@ -104,13 +107,6 @@ export default function Destination() {
       setPosition([gps.lat, gps.lng]);
     }
   }, [gps]);
-
-  useEffect(() => {
-    return () => {
-      tripRepository.delete();
-      intersectionResultsRepository.delete();
-    };
-  }, []);
 
   const createTrip = async (destination: [number, number]) => {
     if (!destination) return;
@@ -170,14 +166,18 @@ export default function Destination() {
 
   const handleSearchRoute = async () => {
     if (trip == null || currentLocation == null) return;
+    setIsRouteSearched(true);
 
     const routeData = await fetchRoute(trip?.id, {
       origin_lat: currentLocation[0],
       origin_lng: currentLocation[1],
     });
 
+    //デバッグ用
+    //console.log(routeData);
+
+    setRoute(routeData);
     tripStore.set(routeData);
-    setIsRouteSearched(true);
 
     await tripRepository.insert(routeData);
     await intersectionResultsRepository.insert(routeData.route.intersections);
@@ -329,7 +329,7 @@ export default function Destination() {
             className="w-full bg-[#126f50] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-teal-900/20 flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-wait"
           >
             <RouteIcon className="w-6 h-6" />
-            {trip == null ? "ルートを準備中..." : "ルートを検索する"}
+            ルートを検索する
           </motion.button>
         ) : (
           <motion.button
@@ -337,10 +337,16 @@ export default function Destination() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={() => navigate("/riding")}
-            className="w-full bg-[#ff8652] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-200/50 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+            disabled={route == null} // 【追加】準備中は押せないようにする
+            className="w-full bg-[#ff8652] text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-200/50 flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-70 disabled:cursor-wait"
           >
-            <PlayCircle className="w-6 h-6" />
-            記録を開始する
+            {/* 【修正】ローディングと再生アイコンが綺麗に切り替わるように調整 */}
+            {route == null ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
+            ) : (
+              <PlayCircle className="w-6 h-6" />
+            )}
+            {route == null ? "ルートを準備中..." : "記録を開始する"}
           </motion.button>
         )}
       </div>

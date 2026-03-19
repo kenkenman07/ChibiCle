@@ -1,11 +1,14 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ShieldCheck, Home, AlertTriangle } from "lucide-react";
-import { MapContainer, Marker, TileLayer } from "react-leaflet";
+//import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { scoreRepository } from "../modules/score/score.repository";
 import { useEffect, useState } from "react";
 import type { ScoreJson } from "../modules/score/score.entity";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import { currentLocationIcon } from "./Destination";
+//import { currentLocationIcon } from "./Destination";
 
 export default function Result() {
   const navigate = useNavigate();
@@ -33,12 +36,12 @@ export default function Result() {
   };
 
   useEffect(() => {
+    if (!currentUser) return;
     fetchResult();
-  }, []);
+  }, [currentUser]);
 
   const fetchResult = async () => {
-    if (!currentUser) return;
-    const data = await scoreRepository.find(currentUser.id);
+    const data = await scoreRepository.find(currentUser!.id);
     console.log(data);
     if (data == null) return;
     const date = new Date(data.created_at);
@@ -57,6 +60,11 @@ export default function Result() {
 
     return Math.round((safetyTimes / intersectionNumber) * 100);
   })();
+
+  const center: [number, number] =
+    unsafePoints && unsafePoints.length > 0
+      ? [unsafePoints[0].lat, unsafePoints[0].lng]
+      : [34.7024, 137.7353];
 
   return (
     <motion.div
@@ -131,35 +139,42 @@ export default function Result() {
           </h3>
 
           {/* マップ表示エリア */}
-          <div className="bg-gray-200 rounded-3xl relative overflow-hidden border-4 border-white shadow-inner h-64 z-10">
-            <MapContainer
-              center={[34.7024, 137.7353]} // 浜松駅周辺を中心に設定
-              zoom={14}
-              className="absolute inset-0 z-0"
-            >
-              <TileLayer
-                attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {/* 危険だった箇所をプロット */}
-              {unsafePoints &&
-                unsafePoints.map((point) => (
-                  <Marker position={[point.lat, point.lng]}></Marker>
-                ))}
-            </MapContainer>
-          </div>
 
           {/* 要注意ポイントのリスト表示 */}
-          <div className="flex flex-col gap-3">
-            {unsafePoints && unsafePoints.length === 0 && (
+          {unsafePoints && unsafePoints.length === 0 ? (
+            <div className="flex flex-col gap-3">
               <div className="bg-emerald-50 rounded-2xl p-4 text-center border border-emerald-100">
                 <ShieldCheck className="w-6 h-6 text-[#48b98b] mx-auto mb-2" />
                 <p className="text-sm text-emerald-700 font-bold">
                   全ての交差点を安全に通行できました！
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            unsafePoints != null && (
+              <div className="bg-gray-200 rounded-3xl relative overflow-hidden border-4 border-white shadow-inner h-64 z-10">
+                <MapContainer
+                  center={center} // 浜松駅周辺を中心に設定
+                  zoom={14}
+                  className="absolute inset-0 z-0"
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+
+                  {unsafePoints &&
+                    unsafePoints.map((point, index) => (
+                      <Marker
+                        key={index}
+                        position={[point.lat, point.lng]}
+                        icon={currentLocationIcon}
+                      ></Marker>
+                    ))}
+                </MapContainer>
+              </div>
+            )
+          )}
         </motion.div>
 
         {/* ダッシュボードへ戻るボタン */}

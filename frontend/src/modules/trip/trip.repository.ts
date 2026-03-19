@@ -3,7 +3,8 @@ import type { Trip } from "./trip.entity";
 
 export const tripRepository = {
   async insert(trip: Trip) {
-    await db.table_trip.add(trip);
+    // Use put for upsert to avoid ConstraintError when the same id exists
+    await db.table_trip.put(trip);
   },
 
   async find() {

@@ -14,12 +14,27 @@ import (
 	"time"
 )
 
+const (
+	geocodeCacheMax = 1000
+	geocodeCacheTTL = 5 * time.Minute
+)
+
+type geocodeCacheEntry struct {
+	results   []domain.GeocodingResult
+	expiresAt time.Time
+}
+
 // PhotonGateway は Photon API を使用した GeocodingService の実装．
 // 地名検索の結果を緯度・経度・表示名の形式で返す．
+// 同一クエリの繰り返し問い合わせを避けるため，TTL 付きインメモリキャッシュを持つ．
 type PhotonGateway struct {
 	baseURL    string       // Photon APIのベースURL
 	httpClient *http.Client // 共有HTTPクライアント
 	limiter    rateLimiter  // Photon APIの利用規約に従うレートリミッター
+
+	cacheMu    sync.RWMutex
+	cache      map[string]geocodeCacheEntry
+	cacheOrder []string
 }
 
 // rateLimiter は指定間隔でリクエストをスロットリングするシンプルなリミッター．
@@ -46,13 +61,25 @@ func NewPhotonGateway(baseURL string, client *http.Client) *PhotonGateway {
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		httpClient: client,
 		limiter:    rateLimiter{interval: time.Second},
+		cache:      make(map[string]geocodeCacheEntry),
 	}
 }
 
 // Search は Photon API で地名検索を実行し，結果を返す．
 // 日本語ロケールかつ東京中心のバイアス付きで検索する．
 // エラー時はハンドラー層が空配列を返すため，ユーザーには影響しない．
+// 同一クエリ（正規化済み）に対してはキャッシュから即座に返す．
 func (g *PhotonGateway) Search(ctx context.Context, query string, limit int) ([]domain.GeocodingResult, error) {
+	cacheKey := strings.ToLower(strings.TrimSpace(query)) + "\x00" + strconv.Itoa(limit)
+
+	g.cacheMu.RLock()
+	if entry, ok := g.cache[cacheKey]; ok && time.Now().Before(entry.expiresAt) {
+		g.cacheMu.RUnlock()
+		slog.Info("Photon キャッシュヒット", "query", query, "results", len(entry.results))
+		return entry.results, nil
+	}
+	g.cacheMu.RUnlock()
+
 	params := url.Values{
 		"q": {query},
 		// "lang":  {"ja"},
@@ -61,9 +88,9 @@ func (g *PhotonGateway) Search(ctx context.Context, query string, limit int) ([]
 		"lon":   {"139.7671"},
 	}
 
-	// レートリミッターで間隔を制御
 	g.limiter.wait()
 
+	t0 := time.Now()
 	reqURL := g.baseURL + "/api/?" + params.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -87,19 +114,16 @@ func (g *PhotonGateway) Search(ctx context.Context, query string, limit int) ([]
 		return nil, err
 	}
 
-	// Photon の GeoJSON レスポンスをパース
 	var geoJSON photonResponse
 	if err := json.Unmarshal(body, &geoJSON); err != nil {
 		return nil, err
 	}
 
-	// GeoJSON Features を GeocodingResult に変換
 	results := make([]domain.GeocodingResult, 0, len(geoJSON.Features))
 	for _, f := range geoJSON.Features {
 		if len(f.Geometry.Coordinates) < 2 {
 			continue
 		}
-		// 表示名を「名称, 市区町村, 都道府県」の形式で構築
 		parts := make([]string, 0, 3)
 		if f.Properties.Name != "" {
 			parts = append(parts, f.Properties.Name)
@@ -115,12 +139,37 @@ func (g *PhotonGateway) Search(ctx context.Context, query string, limit int) ([]
 			displayName = f.Properties.Country
 		}
 		results = append(results, domain.GeocodingResult{
-			Lat:         f.Geometry.Coordinates[1], // GeoJSON は [lng, lat] の順
+			Lat:         f.Geometry.Coordinates[1],
 			Lng:         f.Geometry.Coordinates[0],
 			DisplayName: displayName,
 		})
 	}
+
+	slog.Info("Photon", "duration_s", time.Since(t0).Seconds(), "query", query, "results", len(results))
+
+	g.writeGeocodeCache(cacheKey, results)
 	return results, nil
+}
+
+func (g *PhotonGateway) writeGeocodeCache(key string, results []domain.GeocodingResult) {
+	g.cacheMu.Lock()
+	defer g.cacheMu.Unlock()
+
+	g.cache[key] = geocodeCacheEntry{
+		results:   results,
+		expiresAt: time.Now().Add(geocodeCacheTTL),
+	}
+	g.cacheOrder = append(g.cacheOrder, key)
+
+	if len(g.cache) > geocodeCacheMax {
+		excess := len(g.cache) - geocodeCacheMax
+		for _, k := range g.cacheOrder[:excess] {
+			delete(g.cache, k)
+		}
+		remaining := make([]string, len(g.cacheOrder)-excess)
+		copy(remaining, g.cacheOrder[excess:])
+		g.cacheOrder = remaining
+	}
 }
 
 // --- Photon GeoJSON レスポンス型 ---

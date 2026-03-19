@@ -3,6 +3,8 @@ package usecase
 import (
 	"btd/internal/domain"
 	"context"
+	"log/slog"
+	"time"
 )
 
 // GpsAnalysisUseCase はGPSバッチデータを受信し，交差点での一時停止判定と経路逸脱検知を行うユースケース．
@@ -40,7 +42,8 @@ func NewGpsAnalysisUseCase(
 // Execute はGPSポイントを保存し，経路逸脱チェック→一時停止判定を実行する．
 // 処理結果として保存件数，交差点判定結果，リルート有無を返す．
 func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points []domain.GpsPoint) (*domain.GpsAnalysisResult, error) {
-	// GPSポイントをリポジトリに追記
+	tTotal := time.Now()
+
 	if err := uc.gpsRepo.AppendPoints(tripID, points); err != nil {
 		return nil, err
 	}
@@ -51,7 +54,6 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 		return nil, err
 	}
 
-	// 経路逸脱チェック: 最新GPSポイントがルートから離れすぎていたらリルート
 	if route != nil && len(points) > 0 {
 		lastPoint := points[len(points)-1]
 		if uc.isOffRoute(lastPoint, route) {
@@ -63,20 +65,41 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 				dest := domain.LatLng{Lat: *trip.DestinationLat, Lng: *trip.DestinationLng}
 				origin := domain.LatLng{Lat: lastPoint.Lat, Lng: lastPoint.Lng}
 
+				// リルート前の交差点結果を取得し，通過済みのものを保持する
+				oldResults, err := uc.routeRepo.GetIntersectionResults(tripID)
+				if err != nil {
+					return nil, err
+				}
+				var pastEncountered []*domain.IntersectionResult
+				for _, r := range oldResults {
+					if r.Stopped || r.MinSpeedKmh != nil {
+						pastEncountered = append(pastEncountered, r)
+					}
+				}
+
 				// 現在位置→目的地で新ルートを取得
 				newRoute, err := uc.routingService.GetBicycleRoute(ctx, origin, dest)
 				if err != nil {
 					return nil, err
 				}
-				// 新ルートの交差点結果を初期化して保存
+				// 新ルートの交差点結果を初期化
 				newResults := make([]*domain.IntersectionResult, len(newRoute.Intersections))
 				for i, ix := range newRoute.Intersections {
 					newResults[i] = &domain.IntersectionResult{Intersection: ix}
 				}
+
+				// 旧ルートの通過済み交差点 + 新ルートの交差点を結合し，indexを振り直す
+				combined := make([]*domain.IntersectionResult, 0, len(pastEncountered)+len(newResults))
+				combined = append(combined, pastEncountered...)
+				combined = append(combined, newResults...)
+				for i, r := range combined {
+					r.Intersection.Index = i
+				}
+
 				if err := uc.routeRepo.SaveRoute(tripID, newRoute); err != nil {
 					return nil, err
 				}
-				if err := uc.routeRepo.SaveIntersectionResults(tripID, newResults); err != nil {
+				if err := uc.routeRepo.SaveIntersectionResults(tripID, combined); err != nil {
 					return nil, err
 				}
 				rerouted = true
@@ -84,7 +107,7 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 		}
 	}
 
-	// 交差点での一時停止判定
+	tStopDetect := time.Now()
 	results, err := uc.routeRepo.GetIntersectionResults(tripID)
 	if err != nil {
 		return nil, err
@@ -106,6 +129,11 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 		if point.AccuracyM > uc.accuracyThresholdM {
 			continue
 		}
+		// 速度が取得できなかったポイントは停止判定に使用しない
+		if point.SpeedKmh == nil {
+			continue
+		}
+		speed := *point.SpeedKmh
 		for i, result := range results {
 			// 既に停止判定済みの交差点はスキップ
 			if result.Stopped {
@@ -115,22 +143,29 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 			dist := domain.DistanceM(point.Lat, point.Lng, result.Intersection.Lat, result.Intersection.Lng)
 			if dist <= uc.radiusM {
 				// 圏内の最小速度を更新
-				if speedBuf[i] < 0 || point.SpeedKmh < speedBuf[i] {
-					speedBuf[i] = point.SpeedKmh
+				if speedBuf[i] < 0 || speed < speedBuf[i] {
+					speedBuf[i] = speed
 					result.MinSpeedKmh = &speedBuf[i]
 				}
 				// 速度が閾値未満なら一時停止と判定
-				if point.SpeedKmh < uc.speedThreshold {
+				if speed < uc.speedThreshold {
 					result.Stopped = true
 				}
 			}
 		}
 	}
 
-	// 更新された判定結果を保存
 	if err := uc.routeRepo.SaveIntersectionResults(tripID, results); err != nil {
 		return nil, err
 	}
+
+	slog.Info("GpsAnalysis",
+		"total_s", time.Since(tTotal).Seconds(),
+		"stop_detect_s", time.Since(tStopDetect).Seconds(),
+		"points", len(points),
+		"intersections", len(results),
+		"rerouted", rerouted,
+	)
 
 	return &domain.GpsAnalysisResult{
 		Saved:               len(points),
