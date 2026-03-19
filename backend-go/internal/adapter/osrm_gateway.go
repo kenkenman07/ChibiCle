@@ -586,24 +586,23 @@ func mergeOverpassResult(dst, src *overpassResult) {
 	}
 }
 
+// signalMaxHops は way ノード列上で交差点ノードから信号ノードまでの
+// 許容インデックス距離．この範囲外の信号は別の交差点のものとみなす．
+const signalMaxHops = 2
+
 func markSignalizedIntersections(signalNodes map[int]bool, publicWays [][]int, nodeIDSet map[int]bool, signalTaggedNodes map[int]bool) {
 	for _, wayNodes := range publicWays {
-		hasSignalOnWay := false
-		hasQueriedNode := false
-		for _, nid := range wayNodes {
-			if signalTaggedNodes[nid] {
-				hasSignalOnWay = true
+		for i, nid := range wayNodes {
+			if !nodeIDSet[nid] {
+				continue
 			}
-			if nodeIDSet[nid] {
-				hasQueriedNode = true
-			}
-		}
-		if !hasSignalOnWay || !hasQueriedNode {
-			continue
-		}
-		for _, nid := range wayNodes {
-			if nodeIDSet[nid] {
-				signalNodes[nid] = true
+			lo := max(0, i-signalMaxHops)
+			hi := min(len(wayNodes)-1, i+signalMaxHops)
+			for j := lo; j <= hi; j++ {
+				if signalTaggedNodes[wayNodes[j]] {
+					signalNodes[nid] = true
+					break
+				}
 			}
 		}
 	}
