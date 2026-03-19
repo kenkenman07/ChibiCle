@@ -27,7 +27,6 @@ import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import type { ScoreJson } from "../modules/score/score.entity";
 import { tripRepository } from "../modules/trip/trip.repository";
 import { currentLocationIcon } from "./Destination";
-import { supabase } from "../lib/supabase";
 import type { IntersectionResults } from "../modules/intersectionResults/intersectionResults.entity";
 import { monthlyRepository } from "../modules/monthly/monthly.repository";
 import useSendLine from "../hooks/useSendLine";
@@ -114,13 +113,6 @@ export default function Riding() {
   const finishRiding = async () => {
     await sendGps();
     await recordScore();
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    console.log("session", session);
-    console.log("access_token", session?.access_token);
 
     await sendLine();
 
