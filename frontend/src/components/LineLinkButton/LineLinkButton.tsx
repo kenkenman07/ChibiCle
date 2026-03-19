@@ -15,6 +15,14 @@ export default function LineLinkButton() {
     checkLinkStatus();
   }, [currentUser]);
 
+  useEffect(() => {
+    const initLiff = async () => {
+      const liff = await initLiff();
+
+      console.log(liff);
+    };
+  }, []);
+
   const checkLinkStatus = async () => {
     if (!currentUser) return;
     const record = await userLineRepository.find(currentUser.id);
