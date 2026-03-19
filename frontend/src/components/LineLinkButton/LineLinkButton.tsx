@@ -32,6 +32,7 @@ export default function LineLinkButton() {
 
         await liff.init({
           liffId: import.meta.env.VITE_LIFF_ID,
+          withLoginOnExternalBrowser: true,
         });
 
         if (!liff.isLoggedIn()) {
@@ -62,6 +63,7 @@ export default function LineLinkButton() {
     try {
       await liff.init({
         liffId: import.meta.env.VITE_LIFF_ID,
+        withLoginOnExternalBrowser: true,
       });
 
       if (!liff.isLoggedIn()) {
