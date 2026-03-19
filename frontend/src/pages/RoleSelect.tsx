@@ -1,32 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Navigate } from "react-router-dom";
 import { Bike, Users, CheckCircle2, ArrowRight } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
 import { useRoleStore, type Role } from "../modules/role/role.state";
-import { initLiff } from "../lib/liff";
-import { userLineRepository } from "../modules/userLine/userLine.repository";
-import { useCurrentUserStore } from "../modules/auth/current-user.state";
+
+import LineLinkButton from "../components/LineLinkButton/LineLinkButton";
 
 export default function RoleSelect() {
   const [selectedRole, setSelectedRole] = useState<Role>(null);
   const roleStore = useRoleStore();
-  const { currentUser } = useCurrentUserStore();
-
-  useEffect(() => {
-    if (!currentUser) return;
-    const insertLine = async () => {
-      const liff = await initLiff();
-      if (!liff) return;
-
-      const profile = await liff.getProfile();
-
-      console.log(profile);
-      await userLineRepository.insert(currentUser.id, profile.userId);
-    };
-
-    insertLine();
-  }, []);
 
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
@@ -138,6 +121,8 @@ export default function RoleSelect() {
 
         {/* ボタンを画面下部に押し下げるためのスペーサー */}
         <div className="flex-1 min-h-4"></div>
+
+        <LineLinkButton />
 
         {/* 次へボタン */}
         {/* 【修正】pb-12 に変更して、画面下部のセーフエリア（iPhoneのホームバー等）を確保 */}

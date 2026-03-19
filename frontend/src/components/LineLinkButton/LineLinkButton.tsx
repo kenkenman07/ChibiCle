@@ -27,9 +27,10 @@ export default function LineLinkButton() {
     try {
       const liff = await initLiff();
       if (!liff) return;
+      console.log(liff);
 
       if (!liff.isLoggedIn()) {
-        liff.login();
+        liff.login(); // ← ここだけ遷移する
         return;
       }
 
