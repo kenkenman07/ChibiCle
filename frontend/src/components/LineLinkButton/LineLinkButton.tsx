@@ -28,7 +28,7 @@ export default function LineLinkButton() {
       const liff = await initLiff();
       if (!liff) return;
       const profile = await liff.getProfile();
-      await userLineRepository.upsert(currentUser.id, profile.userId);
+      await userLineRepository.insert(currentUser.id, profile.userId);
       setLinkState("linked");
     } catch {
       setLinkState("unlinked");

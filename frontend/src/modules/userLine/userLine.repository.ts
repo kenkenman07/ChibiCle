@@ -1,11 +1,10 @@
 import { supabase } from "../../lib/supabase";
 
 export const userLineRepository = {
-  async upsert(userId: string, lineId: string) {
-    const { error } = await supabase.from("user_line").upsert({
+  async insert(userId: string, lineId: string) {
+    const { error } = await supabase.from("user_line").insert({
       user_id: userId,
       line_id: lineId,
-      created_at: new Date().toISOString(),
     });
     if (error) throw new Error(error.message);
   },
