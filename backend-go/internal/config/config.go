@@ -20,7 +20,7 @@ type Settings struct {
 	OsrmProfile string `envconfig:"OSRM_PROFILE" default:"bike"`
 
 	// 交差点判定パラメータ
-	IntersectionRadiusM        float64 `envconfig:"INTERSECTION_RADIUS_M" default:"30.0"`       // 交差点圏内と判定する半径（m）
+	IntersectionRadiusM        float64 `envconfig:"INTERSECTION_RADIUS_M" default:"1.0"`       // 交差点圏内と判定する半径（m）
 	IntersectionSpeedThreshold float64 `envconfig:"INTERSECTION_SPEED_THRESHOLD" default:"3.0"` // 一時停止と判定する速度閾値（km/h）
 	IntersectionMinRoads       int     `envconfig:"INTERSECTION_MIN_ROADS" default:"3"`         // 交差点とみなす最小道路数（T字路=3）
 
