@@ -27,6 +27,12 @@ export default function LineLinkButton() {
     try {
       const liff = await initLiff();
       if (!liff) return;
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
       const profile = await liff.getProfile();
 
       console.log(profile);
