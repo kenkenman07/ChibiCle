@@ -1,5 +1,23 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const ALLOWED_ORIGINS = [
+  "https://blue-ticket-driving.vercel.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin");
+  const isAllowed =
+    origin &&
+    (ALLOWED_ORIGINS.includes(origin) || origin.endsWith(".vercel.app"));
+  const allowed = isAllowed ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
+
 function buildFlexMessage(
   score: {
     scorePercent: number;
@@ -128,17 +146,68 @@ function buildFlexMessage(
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  const mergeHeaders = (h: Record<string, string>) => ({
+    ...corsHeaders,
+    ...h,
+  });
+
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid Authorization header" }),
+        {
+          status: 401,
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
+        },
+      );
+    }
+
+    const token = authHeader.slice(7);
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { user_id } = await req.json();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        {
+          status: 401,
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
+        },
+      );
+    }
+
+    const body = await req.json();
+    const user_id = body?.user_id;
     if (!user_id) {
       return new Response(
         JSON.stringify({ sent: false, reason: "missing_user_id" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
+        },
+      );
+    }
+
+    if (user.id !== user_id) {
+      return new Response(
+        JSON.stringify({ error: "user_id does not match authenticated user" }),
+        {
+          status: 403,
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
+        },
       );
     }
 
@@ -151,7 +220,7 @@ Deno.serve(async (req) => {
     if (!scoreData?.score) {
       return new Response(
         JSON.stringify({ sent: false, reason: "no_score" }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: mergeHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
@@ -164,7 +233,7 @@ Deno.serve(async (req) => {
     if (!lineData?.line_id) {
       return new Response(
         JSON.stringify({ sent: false, reason: "no_line_id" }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: mergeHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
@@ -205,19 +274,22 @@ Deno.serve(async (req) => {
       console.error("LINE API error:", lineRes.status, errBody);
       return new Response(
         JSON.stringify({ sent: false, reason: "line_api_error" }),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: mergeHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
     return new Response(
       JSON.stringify({ sent: true }),
-      { headers: { "Content-Type": "application/json" } },
+      { headers: mergeHeaders({ "Content-Type": "application/json" }) },
     );
   } catch (e) {
     console.error("notify-parent error:", e);
     return new Response(
       JSON.stringify({ sent: false, reason: "internal_error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: mergeHeaders({ "Content-Type": "application/json" }),
+      },
     );
   }
 });
