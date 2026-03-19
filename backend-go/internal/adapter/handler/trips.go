@@ -289,6 +289,7 @@ func (h *TripHandler) toOut(trip *domain.Trip) tripOut {
 }
 
 // routeOut はルート情報をJSON出力形式に変換する．ルート未設定時は nil を返す．
+// 交差点リストは intersectionResults をベースに構築する（リルート時の旧通過済み交差点を含むため）．
 func (h *TripHandler) routeOut(tripID string) *routeOut {
 	route, err := h.routeRepo.GetRoute(tripID)
 	if err != nil || route == nil {
@@ -299,32 +300,24 @@ func (h *TripHandler) routeOut(tripID string) *routeOut {
 		return nil
 	}
 
-	// 交差点結果を index でルックアップできるようにマップ化
-	resultMap := make(map[int]*domain.IntersectionResult, len(results))
-	for _, r := range results {
-		resultMap[r.Intersection.Index] = r
-	}
-
 	// ジオメトリを [[lat, lng], ...] 形式に変換
 	geometry := make([][]float64, len(route.Geometry))
 	for i, ll := range route.Geometry {
 		geometry[i] = []float64{ll.Lat, ll.Lng}
 	}
 
-	// 交差点リストに判定結果をマージ
-	ixOuts := make([]intersectionOut, len(route.Intersections))
-	for i, ix := range route.Intersections {
-		out := intersectionOut{
-			Index:    ix.Index,
-			Lat:      ix.Lat,
-			Lng:      ix.Lng,
-			NumRoads: ix.NumRoads,
+	// 交差点リストは intersectionResults から構築する
+	// （リルート後は旧ルートの通過済み交差点 + 新ルートの交差点が含まれる）
+	ixOuts := make([]intersectionOut, len(results))
+	for i, r := range results {
+		ixOuts[i] = intersectionOut{
+			Index:       r.Intersection.Index,
+			Lat:         r.Intersection.Lat,
+			Lng:         r.Intersection.Lng,
+			NumRoads:    r.Intersection.NumRoads,
+			Stopped:     r.Stopped,
+			MinSpeedKmh: r.MinSpeedKmh,
 		}
-		if r, ok := resultMap[ix.Index]; ok {
-			out.Stopped = r.Stopped
-			out.MinSpeedKmh = r.MinSpeedKmh
-		}
-		ixOuts[i] = out
 	}
 
 	return &routeOut{

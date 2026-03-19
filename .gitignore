@@ -26,3 +26,5 @@ Thumbs.db
 *.swp
 *.swo
 
+# playwrite
+.playwrite-cli/

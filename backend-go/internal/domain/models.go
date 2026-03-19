@@ -5,11 +5,11 @@ package domain
 // GpsPoint はフロントエンドから送信される1件のGPS測位データを表す．
 // 走行中に5秒間隔でバッチ送信される．
 type GpsPoint struct {
-	Lat        float64 // 緯度
-	Lng        float64 // 経度
-	SpeedKmh   float64 // 測位時の速度（km/h）
-	AccuracyM  float64 // 測位精度（メートル）．値が大きいほど不正確
-	RecordedAt string  // 測位日時（RFC3339）
+	Lat        float64  // 緯度
+	Lng        float64  // 経度
+	SpeedKmh   *float64 // 測位時の速度（km/h）．nil = 速度取得不可（停止判定に使用しない）
+	AccuracyM  float64  // 測位精度（メートル）．値が大きいほど不正確
+	RecordedAt string   // 測位日時（RFC3339）
 }
 
 // Trip は目的地までの1回の走行を表す．
