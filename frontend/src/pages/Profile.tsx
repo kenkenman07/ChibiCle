@@ -4,6 +4,7 @@ import { LogOut, Users, ShieldAlert } from "lucide-react";
 import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import { authRepository } from "../modules/auth/auth.repository";
 import { useRoleStore } from "../modules/role/role.state";
+import LineLinkButton from "../components/LineLinkButton/LineLinkButton";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -75,6 +76,9 @@ export default function Profile() {
             </p>
           </div>
         </div>
+
+        {/* LINE連携 (保護者のみ表示) */}
+        {roleStore.role === "parent" && <LineLinkButton />}
 
         {/* 下部余白を埋めてボタンを下へ押しやる */}
         <div className="flex-1"></div>

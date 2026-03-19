@@ -1,14 +1,14 @@
-import liff from "@line/liff"
+import liff from "@line/liff";
 
 export const initLiff = async () => {
-    await liff.init({
-        liffId: VITE_LIFF_ID
-    })
+  await liff.init({
+    liffId: import.meta.env.VITE_LIFF_ID,
+  });
 
-    if (!liff.isLoggedIn()) {
-        liff.login();
-        return null;
-    }
-    return liff;
-}
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return null;
+  }
+  return liff;
+};
 

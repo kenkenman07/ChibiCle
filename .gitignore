@@ -20,6 +20,9 @@ certs/
 .DS_Store
 Thumbs.db
 
+# Supabase
+supabase/.temp/
+
 # IDE
 .vscode/
 .idea/

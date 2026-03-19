@@ -28,6 +28,7 @@ import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import type { ScoreJson } from "../modules/score/score.entity";
 import { tripRepository } from "../modules/trip/trip.repository";
 import { currentLocationIcon } from "./Destination";
+import { supabase } from "../lib/supabase";
 
 // 【追加】現在地が更新されるたびにマップの中心を移動させるコンポーネント
 function MapCenterController({ center }: { center: [number, number] | null }) {
@@ -100,6 +101,13 @@ export default function Riding() {
   const finishRiding = async () => {
     await sendGps();
     await recordScore();
+    try {
+      await supabase.functions.invoke("notify-parent", {
+        body: { user_id: currentUser!.id },
+      });
+    } catch (e) {
+      console.warn("LINE通知の送信に失敗:", e);
+    }
     navigate("/result");
   };
 
