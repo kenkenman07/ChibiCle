@@ -1,0 +1,8 @@
+# Supabase project configuration
+# https://supabase.com/docs/guides/cli/config
+
+[functions]
+# notify-parent: called from frontend after ride ends; user_id validated via body
+# JWT verification disabled to avoid 401 with asymmetric keys / client session timing
+[functions.notify-parent]
+verify_jwt = false
