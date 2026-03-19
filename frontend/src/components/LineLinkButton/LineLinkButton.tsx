@@ -28,6 +28,8 @@ export default function LineLinkButton() {
       const liff = await initLiff();
       if (!liff) return;
       const profile = await liff.getProfile();
+
+      console.log(profile);
       await userLineRepository.insert(currentUser.id, profile.userId);
       setLinkState("linked");
     } catch {
@@ -70,9 +72,7 @@ export default function LineLinkButton() {
       </div>
       <div className="text-left">
         <p className="text-sm font-bold">LINEアカウントを連携する</p>
-        <p className="text-xs text-white/80">
-          走行結果の通知を受け取れます
-        </p>
+        <p className="text-xs text-white/80">走行結果の通知を受け取れます</p>
       </div>
     </button>
   );
