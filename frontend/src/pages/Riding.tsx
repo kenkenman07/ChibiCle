@@ -112,6 +112,14 @@ export default function Riding() {
   const finishRiding = async () => {
     await sendGps();
     await recordScore();
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    console.log("session", session);
+    console.log("access_token", session?.access_token);
+
     try {
       await supabase.functions.invoke("notify-parent", {
         body: { user_id: currentUser!.id },
