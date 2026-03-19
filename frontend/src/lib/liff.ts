@@ -9,6 +9,5 @@ export const initLiff = async () => {
     liff.login();
     return null;
   }
-  return liff;
+  return liff.getProfile();
 };
-
