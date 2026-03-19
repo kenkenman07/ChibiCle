@@ -47,6 +47,7 @@ export default function LineLinkButton() {
     // await completeLinkFlow();
     const liff = await initLiff();
     if (!liff) return;
+    console.log(liff);
     if (!currentUser) return;
     await userLineRepository.insert(currentUser.id, liff.userId);
   };
