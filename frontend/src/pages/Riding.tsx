@@ -30,6 +30,7 @@ import { currentLocationIcon } from "./Destination";
 import { supabase } from "../lib/supabase";
 import type { IntersectionResults } from "../modules/intersectionResults/intersectionResults.entity";
 import { monthlyRepository } from "../modules/monthly/monthly.repository";
+import useSendLine from "../hooks/useSendLine";
 
 function MapCenterController({ center }: { center: [number, number] | null }) {
   const map = useMap();
@@ -55,6 +56,7 @@ export default function Riding() {
   const gpsStore = useGpsStore();
   const { currentGps } = useGpsStore();
   const { currentUser } = useCurrentUserStore();
+  const { sendLine } = useSendLine();
 
   const tripStore = useTripStore();
 
@@ -120,13 +122,8 @@ export default function Riding() {
     console.log("session", session);
     console.log("access_token", session?.access_token);
 
-    try {
-      await supabase.functions.invoke("index", {
-        body: { user_id: currentUser!.id },
-      });
-    } catch (e) {
-      console.warn("LINE通知の送信に失敗:", e);
-    }
+    await sendLine();
+
     navigate("/result");
   };
 
