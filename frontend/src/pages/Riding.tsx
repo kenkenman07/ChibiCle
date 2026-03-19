@@ -146,11 +146,11 @@ export default function Riding() {
     const stoppedData = data.filter((i) => i.stopped);
     const passedData = data.filter((i) => i.min_speed_kmh != null);
 
-    const scorePercent = Math.round(
-      (stoppedData.length / passedData.length) * 100
-    );
+    const scorePercent =
+      passedData.length == 0
+        ? 0
+        : Math.round((stoppedData.length / passedData.length) * 100);
 
-    //デバッグ用。data→passedData
     const score: ScoreJson = {
       scorePercent: scorePercent,
       intersectionNumber: passedData.length,
@@ -162,6 +162,7 @@ export default function Riding() {
           lng: i.lng,
         })),
     };
+
     await scoreRepository.update(currentUser.id, score);
 
     const now = Date.now();
