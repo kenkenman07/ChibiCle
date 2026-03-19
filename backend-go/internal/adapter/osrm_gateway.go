@@ -588,7 +588,9 @@ func mergeOverpassResult(dst, src *overpassResult) {
 
 // signalMaxHops は way ノード列上で交差点ノードから信号ノードまでの
 // 許容インデックス距離．この範囲外の信号は別の交差点のものとみなす．
-const signalMaxHops = 2
+// 信号タグは交差点ノード自体 (0 hop) か直隣接ノード (1 hop) に付くため，
+// 1 に設定することで隣接交差点への波及を防ぐ．
+const signalMaxHops = 1
 
 func markSignalizedIntersections(signalNodes map[int]bool, publicWays [][]int, nodeIDSet map[int]bool, signalTaggedNodes map[int]bool) {
 	for _, wayNodes := range publicWays {
