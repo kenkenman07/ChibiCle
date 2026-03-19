@@ -357,9 +357,10 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 
 	// Overpass QL クエリ:
 	// 1. 指定ノードを含む公道 way を取得
-	// 2. その公道 way 上の signal 関連 node を取得
+	// 2. その公道 way 上の車両用信号 (highway=traffic_signals) node を取得
+	//    歩行者信号 (crossing=traffic_signals, traffic_signals:*) は対象外
 	query := fmt.Sprintf(
-		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"]->.public;.public out skel qt;(node.isec["highway"="traffic_signals"];node(w.public)["highway"="traffic_signals"];node(w.public)["crossing"="traffic_signals"];node(w.public)[~"^traffic_signals(:.*)?$"~".*"];);out tags qt;`,
+		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"]->.public;.public out skel qt;(node.isec["highway"="traffic_signals"];node(w.public)["highway"="traffic_signals"];);out tags qt;`,
 		sb.String(), highwayRegex,
 	)
 
@@ -611,21 +612,7 @@ func markSignalizedIntersections(signalNodes map[int]bool, publicWays [][]int, n
 }
 
 func isSignalTagged(tags map[string]string) bool {
-	if len(tags) == 0 {
-		return false
-	}
-	if tags["highway"] == "traffic_signals" {
-		return true
-	}
-	if tags["crossing"] == "traffic_signals" {
-		return true
-	}
-	for key := range tags {
-		if key == "traffic_signals" || strings.HasPrefix(key, "traffic_signals:") {
-			return true
-		}
-	}
-	return false
+	return tags["highway"] == "traffic_signals"
 }
 
 func trimCache(cache map[int]bool, order []int) []int {
