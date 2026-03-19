@@ -46,11 +46,12 @@ func main() {
 
 	// アダプター層: インターフェースの具体的な実装を生成
 	repo := adapter.NewInMemoryRepository() // 全リポジトリのインメモリ実装
-	osrm := adapter.NewOsrmGateway(         // OSRM + Overpass（ルーティング + 公道判定）
+	osrm := adapter.NewOsrmGateway(         // OSRM + Overpass（ルーティング + 公道/信号判定）
 		settings.OsrmBaseURL,
 		settings.OsrmProfile,
 		settings.IntersectionMinRoads,
 		settings.FilterNonPublicRoads,
+		settings.FilterSignalizedIntersections,
 		settings.OverpassAPIURL,
 		httpClient,
 	)

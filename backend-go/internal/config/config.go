@@ -20,17 +20,18 @@ type Settings struct {
 	OsrmProfile string `envconfig:"OSRM_PROFILE" default:"bike"`
 
 	// 交差点判定パラメータ
-	IntersectionRadiusM        float64 `envconfig:"INTERSECTION_RADIUS_M" default:"30.0"`        // 交差点圏内と判定する半径（m）
-	IntersectionSpeedThreshold float64 `envconfig:"INTERSECTION_SPEED_THRESHOLD" default:"3.0"`  // 一時停止と判定する速度閾値（km/h）
-	IntersectionMinRoads       int     `envconfig:"INTERSECTION_MIN_ROADS" default:"3"`          // 交差点とみなす最小道路数（T字路=3）
+	IntersectionRadiusM        float64 `envconfig:"INTERSECTION_RADIUS_M" default:"30.0"`       // 交差点圏内と判定する半径（m）
+	IntersectionSpeedThreshold float64 `envconfig:"INTERSECTION_SPEED_THRESHOLD" default:"3.0"` // 一時停止と判定する速度閾値（km/h）
+	IntersectionMinRoads       int     `envconfig:"INTERSECTION_MIN_ROADS" default:"3"`         // 交差点とみなす最小道路数（T字路=3）
 
 	// GPS 処理パラメータ
 	GpsAccuracyThresholdM float64 `envconfig:"GPS_ACCURACY_THRESHOLD_M" default:"50.0"` // この精度を超えるGPSポイントは無視
 	OffRouteThresholdM    float64 `envconfig:"OFF_ROUTE_THRESHOLD_M" default:"50.0"`    // 経路から離れるとリルートする距離（m）
 
-	// Overpass API（公道フィルタ用）
-	FilterNonPublicRoads bool   `envconfig:"FILTER_NON_PUBLIC_ROADS" default:"true"`                       // 公道以外の交差点を除外するか
-	OverpassAPIURL       string `envconfig:"OVERPASS_API_URL" default:"https://overpass-api.de/api/interpreter"`
+	// Overpass API（交差点フィルタ用）
+	FilterNonPublicRoads          bool   `envconfig:"FILTER_NON_PUBLIC_ROADS" default:"true"`         // 公道以外の交差点を除外するか
+	FilterSignalizedIntersections bool   `envconfig:"FILTER_SIGNALIZED_INTERSECTIONS" default:"true"` // 信号付き交差点を除外するか
+	OverpassAPIURL                string `envconfig:"OVERPASS_API_URL" default:"https://overpass-api.de/api/interpreter"`
 
 	// Photon ジオコーディングAPI
 	PhotonBaseURL string `envconfig:"PHOTON_BASE_URL" default:"https://photon.komoot.io"`

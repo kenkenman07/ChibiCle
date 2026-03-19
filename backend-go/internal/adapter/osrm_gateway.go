@@ -38,12 +38,13 @@ const nodeCacheMax = 50_000
 // OsrmGateway は OSRM（自転車ルーティング）と Overpass API（公道・信号判定）を
 // 組み合わせた RoutingService の実装．
 type OsrmGateway struct {
-	baseURL              string       // OSRM APIのベースURL
-	profile              string       // OSRM profile名（例: bike）
-	minRoads             int          // 交差点とみなす最小道路数
-	filterNonPublicRoads bool         // 互換性のため名称はそのまま。実際には公道・信号フィルタを有効にする
-	overpassURL          string       // Overpass APIのURL
-	httpClient           *http.Client // 共有HTTPクライアント
+	baseURL                       string       // OSRM APIのベースURL
+	profile                       string       // OSRM profile名（例: bike）
+	minRoads                      int          // 交差点とみなす最小道路数
+	filterNonPublicRoads          bool         // 公道以外の交差点を除外するか
+	filterSignalizedIntersections bool         // 信号付き交差点を除外するか
+	overpassURL                   string       // Overpass APIのURL
+	httpClient                    *http.Client // 共有HTTPクライアント
 
 	mu               sync.RWMutex // ノードキャッシュの排他制御
 	nodeCache        map[int]bool // OSMノードID → 公道上にあるか
@@ -52,16 +53,17 @@ type OsrmGateway struct {
 	signalCacheOrder []int        // FIFO eviction 用の挿入順序
 }
 
-func NewOsrmGateway(baseURL, profile string, minRoads int, filterNonPublicRoads bool, overpassURL string, client *http.Client) *OsrmGateway {
+func NewOsrmGateway(baseURL, profile string, minRoads int, filterNonPublicRoads, filterSignalizedIntersections bool, overpassURL string, client *http.Client) *OsrmGateway {
 	return &OsrmGateway{
-		baseURL:              strings.TrimRight(baseURL, "/"),
-		profile:              normalizeOsrmProfile(profile),
-		minRoads:             minRoads,
-		filterNonPublicRoads: filterNonPublicRoads,
-		overpassURL:          overpassURL,
-		httpClient:           client,
-		nodeCache:            make(map[int]bool),
-		signalCache:          make(map[int]bool),
+		baseURL:                       strings.TrimRight(baseURL, "/"),
+		profile:                       normalizeOsrmProfile(profile),
+		minRoads:                      minRoads,
+		filterNonPublicRoads:          filterNonPublicRoads,
+		filterSignalizedIntersections: filterSignalizedIntersections,
+		overpassURL:                   overpassURL,
+		httpClient:                    client,
+		nodeCache:                     make(map[int]bool),
+		signalCache:                   make(map[int]bool),
 	}
 }
 
@@ -224,8 +226,8 @@ func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.La
 		}
 	}
 
-	// 公道フィルタ: Overpass API で公道上の交差点のみに絞り込む
-	if g.filterNonPublicRoads && len(intersections) > 0 {
+	// Overpass フィルタ: 設定に応じて公道外または信号付き交差点を除外する
+	if (g.filterNonPublicRoads || g.filterSignalizedIntersections) && len(intersections) > 0 {
 		filtered, err := g.filterPublicRoadIntersections(ctx, intersections, isecNodeIDs)
 		if err != nil {
 			slog.Warn("Overpass APIクエリ失敗 — フィルタなしで全交差点を返します", "error", err)
@@ -244,35 +246,23 @@ func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.La
 
 // --- Overpass API による公道フィルタリング ---
 
-// filterPublicRoadIntersections は交差点リストから公道外または信号付きのものを除外する．
+type intersectionNodePair struct {
+	isec   domain.Intersection
+	nodeID int
+}
+
+// filterPublicRoadIntersections は設定に応じて交差点リストから公道外または信号付きのものを除外する．
 // OSMノードIDが取得できなかった交差点（unknown）は安全側に残す．
 func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, intersections []domain.Intersection, nodeIDs []int) ([]domain.Intersection, error) {
-	type pair struct {
-		isec   domain.Intersection
-		nodeID int
-	}
-
 	// ノードIDの有無で known/unknown に分類
-	var known []pair
-	var unknown []domain.Intersection
-	for i, isec := range intersections {
-		nid := nodeIDs[i]
-		if nid != 0 {
-			known = append(known, pair{isec, nid})
-		} else {
-			unknown = append(unknown, isec)
-		}
-	}
+	known, unknown := splitIntersectionsByNodeID(intersections, nodeIDs)
 
 	if len(known) == 0 {
 		slog.Info("公道フィルタ: OSMノードID取得不可 — スキップ")
 		return intersections, nil
 	}
 
-	allNIDs := make([]int, len(known))
-	for i, p := range known {
-		allNIDs[i] = p.nodeID
-	}
+	allNIDs := collectIntersectionNodeIDs(known)
 
 	// Overpass API で公道・信号交差点を同時判定（キャッシュ付き）
 	t0 := time.Now()
@@ -282,28 +272,21 @@ func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, interse
 	}
 	slog.Info("公道・信号判定", "duration", time.Since(t0).Seconds())
 
-	// 公道上かつ signal 関連要素のない交差点のみ残し，unknown は安全側に含める
+	// 設定に応じて公道外交差点・signal 関連要素のある交差点を除外し，unknown は安全側に含める
 	before := len(intersections)
-	var filtered []domain.Intersection
-	var signalCount int
-	for _, p := range known {
-		if !overpass.PublicNodes[p.nodeID] {
-			continue // 公道上にない
-		}
-		if overpass.SignalNodes[p.nodeID] {
-			signalCount++
-			continue // 信号あり — 除外
-		}
-		filtered = append(filtered, p.isec)
-	}
-	filtered = append(filtered, unknown...)
+	filtered, signalCount, nonPublicCount := g.applyIntersectionFilters(known, unknown, overpass)
 
 	// index を0から振り直す
-	result := make([]domain.Intersection, len(filtered))
-	for i, f := range filtered {
-		result[i] = domain.Intersection{Index: i, Lat: f.Lat, Lng: f.Lng, NumRoads: f.NumRoads}
-	}
-	slog.Info("公道・信号フィルタ", "before", before, "after", len(result), "removed_non_public", before-len(result)-signalCount, "removed_signals", signalCount)
+	result := reindexIntersections(filtered)
+	slog.Info(
+		"公道・信号フィルタ",
+		"before", before,
+		"after", len(result),
+		"filter_non_public", g.filterNonPublicRoads,
+		"filter_signalized", g.filterSignalizedIntersections,
+		"removed_non_public", nonPublicCount,
+		"removed_signals", signalCount,
+	)
 	return result, nil
 }
 
@@ -311,36 +294,7 @@ func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, interse
 // 信号判定は中心nodeだけでなく，接続公道 way 上の signal 関連 node も含めて評価する．
 // 公道判定と信号判定は別キャッシュで保持し，どちらかが未判定のノードだけ Overpass API に問い合わせる．
 func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (*overpassResult, error) {
-	result := &overpassResult{
-		PublicNodes: make(map[int]bool, len(nodeIDs)),
-		SignalNodes: make(map[int]bool),
-	}
-	var uncached []int
-	publicHits := 0
-	signalHits := 0
-
-	// キャッシュから読み取り（読み取りロック）
-	g.mu.RLock()
-	for _, nid := range nodeIDs {
-		publicVal, publicCached := g.nodeCache[nid]
-		signalVal, signalCached := g.signalCache[nid]
-		if publicCached {
-			publicHits++
-		}
-		if signalCached {
-			signalHits++
-		}
-		if publicCached && publicVal {
-			result.PublicNodes[nid] = true
-		}
-		if signalCached && signalVal {
-			result.SignalNodes[nid] = true
-		}
-		if !publicCached || !signalCached {
-			uncached = append(uncached, nid)
-		}
-	}
-	g.mu.RUnlock()
+	result, uncached, publicHits, signalHits := g.readCachedOverpassResult(nodeIDs)
 
 	if len(uncached) == 0 {
 		slog.Info("公道・信号キャッシュ: 全ヒット (Overpassスキップ)", "total", len(nodeIDs))
@@ -361,26 +315,8 @@ func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (*o
 	}
 
 	// キャッシュを更新（書き込みロック）
-	g.mu.Lock()
-	for _, nid := range uncached {
-		_, isPublic := queried.PublicNodes[nid]
-		g.nodeCache[nid] = isPublic
-		g.nodeCacheOrder = append(g.nodeCacheOrder, nid)
-
-		_, hasSignal := queried.SignalNodes[nid]
-		g.signalCache[nid] = hasSignal
-		g.signalCacheOrder = append(g.signalCacheOrder, nid)
-	}
-	g.nodeCacheOrder = trimCache(g.nodeCache, g.nodeCacheOrder)
-	g.signalCacheOrder = trimCache(g.signalCache, g.signalCacheOrder)
-	g.mu.Unlock()
-
-	for nid := range queried.PublicNodes {
-		result.PublicNodes[nid] = true
-	}
-	for nid := range queried.SignalNodes {
-		result.SignalNodes[nid] = true
-	}
+	g.writeCachedOverpassResult(uncached, queried)
+	mergeOverpassResult(result, queried)
 	return result, nil
 }
 
@@ -481,7 +417,136 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 			}
 		}
 	}
+	markSignalizedIntersections(result.SignalNodes, publicWays, nodeIDSet, signalTaggedNodes)
 
+	slog.Info("Overpass", "queried", len(nodeIDs), "public", len(result.PublicNodes), "signals", len(result.SignalNodes))
+	return result, nil
+}
+
+// roundTo6 は浮動小数点数を小数点以下6桁に丸める．
+// 座標の重複判定で使用する（約0.1mの精度）．
+func roundTo6(v float64) float64 {
+	return math.Round(v*1e6) / 1e6
+}
+
+func splitIntersectionsByNodeID(intersections []domain.Intersection, nodeIDs []int) ([]intersectionNodePair, []domain.Intersection) {
+	var known []intersectionNodePair
+	var unknown []domain.Intersection
+	for i, isec := range intersections {
+		nid := nodeIDs[i]
+		if nid != 0 {
+			known = append(known, intersectionNodePair{isec: isec, nodeID: nid})
+		} else {
+			unknown = append(unknown, isec)
+		}
+	}
+	return known, unknown
+}
+
+func collectIntersectionNodeIDs(known []intersectionNodePair) []int {
+	nodeIDs := make([]int, len(known))
+	for i, p := range known {
+		nodeIDs[i] = p.nodeID
+	}
+	return nodeIDs
+}
+
+func (g *OsrmGateway) applyIntersectionFilters(known []intersectionNodePair, unknown []domain.Intersection, overpass *overpassResult) ([]domain.Intersection, int, int) {
+	filtered := make([]domain.Intersection, 0, len(known)+len(unknown))
+	var signalCount int
+	var nonPublicCount int
+
+	for _, p := range known {
+		if g.filterNonPublicRoads && !overpass.PublicNodes[p.nodeID] {
+			nonPublicCount++
+			continue
+		}
+		if g.filterSignalizedIntersections && overpass.SignalNodes[p.nodeID] {
+			signalCount++
+			continue
+		}
+		filtered = append(filtered, p.isec)
+	}
+
+	filtered = append(filtered, unknown...)
+	return filtered, signalCount, nonPublicCount
+}
+
+func reindexIntersections(intersections []domain.Intersection) []domain.Intersection {
+	result := make([]domain.Intersection, len(intersections))
+	for i, isec := range intersections {
+		result[i] = domain.Intersection{
+			Index:    i,
+			Lat:      isec.Lat,
+			Lng:      isec.Lng,
+			NumRoads: isec.NumRoads,
+		}
+	}
+	return result
+}
+
+func (g *OsrmGateway) readCachedOverpassResult(nodeIDs []int) (*overpassResult, []int, int, int) {
+	result := &overpassResult{
+		PublicNodes: make(map[int]bool, len(nodeIDs)),
+		SignalNodes: make(map[int]bool),
+	}
+	var uncached []int
+	publicHits := 0
+	signalHits := 0
+
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	for _, nid := range nodeIDs {
+		publicVal, publicCached := g.nodeCache[nid]
+		signalVal, signalCached := g.signalCache[nid]
+		if publicCached {
+			publicHits++
+		}
+		if signalCached {
+			signalHits++
+		}
+		if publicCached && publicVal {
+			result.PublicNodes[nid] = true
+		}
+		if signalCached && signalVal {
+			result.SignalNodes[nid] = true
+		}
+		if !publicCached || !signalCached {
+			uncached = append(uncached, nid)
+		}
+	}
+
+	return result, uncached, publicHits, signalHits
+}
+
+func (g *OsrmGateway) writeCachedOverpassResult(nodeIDs []int, queried *overpassResult) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	for _, nid := range nodeIDs {
+		_, isPublic := queried.PublicNodes[nid]
+		g.nodeCache[nid] = isPublic
+		g.nodeCacheOrder = append(g.nodeCacheOrder, nid)
+
+		_, hasSignal := queried.SignalNodes[nid]
+		g.signalCache[nid] = hasSignal
+		g.signalCacheOrder = append(g.signalCacheOrder, nid)
+	}
+	g.nodeCacheOrder = trimCache(g.nodeCache, g.nodeCacheOrder)
+	g.signalCacheOrder = trimCache(g.signalCache, g.signalCacheOrder)
+}
+
+func mergeOverpassResult(dst, src *overpassResult) {
+	for nid := range src.PublicNodes {
+		dst.PublicNodes[nid] = true
+	}
+	for nid := range src.SignalNodes {
+		dst.SignalNodes[nid] = true
+	}
+}
+
+func markSignalizedIntersections(signalNodes map[int]bool, publicWays [][]int, nodeIDSet map[int]bool, signalTaggedNodes map[int]bool) {
 	for _, wayNodes := range publicWays {
 		hasSignalOnWay := false
 		hasQueriedNode := false
@@ -498,19 +563,10 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 		}
 		for _, nid := range wayNodes {
 			if nodeIDSet[nid] {
-				result.SignalNodes[nid] = true
+				signalNodes[nid] = true
 			}
 		}
 	}
-
-	slog.Info("Overpass", "queried", len(nodeIDs), "public", len(result.PublicNodes), "signals", len(result.SignalNodes))
-	return result, nil
-}
-
-// roundTo6 は浮動小数点数を小数点以下6桁に丸める．
-// 座標の重複判定で使用する（約0.1mの精度）．
-func roundTo6(v float64) float64 {
-	return math.Round(v*1e6) / 1e6
 }
 
 func isSignalTagged(tags map[string]string) bool {
