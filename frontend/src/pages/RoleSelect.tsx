@@ -1,13 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Navigate } from "react-router-dom";
 import { Bike, Users, CheckCircle2, ArrowRight } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
 import { useRoleStore, type Role } from "../modules/role/role.state";
+import { initLiff } from "../lib/liff";
+import { userLineRepository } from "../modules/userLine/userLine.repository";
+import { useCurrentUserStore } from "../modules/auth/current-user.state";
 
 export default function RoleSelect() {
   const [selectedRole, setSelectedRole] = useState<Role>(null);
   const roleStore = useRoleStore();
+  const { currentUser } = useCurrentUserStore();
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const insertLine = async () => {
+      const liff = await initLiff();
+      if (!liff) return;
+
+      const profile = await liff.getProfile();
+
+      console.log(profile);
+      await userLineRepository.insert(currentUser.id, profile.userId);
+    };
+
+    insertLine();
+  }, []);
 
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
