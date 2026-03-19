@@ -10,8 +10,30 @@ export default function LineLinkButton() {
   const { currentUser } = useCurrentUserStore();
   const [linkState, setLinkState] = useState<LinkState>("loading");
 
+  const completeLinkFlow = async () => {
+    if (!currentUser) return;
+    setLinkState("loading");
+    try {
+      const liff = await initLiff();
+      if (!liff) return;
+      const profile = await liff.getProfile();
+      await userLineRepository.insert(currentUser.id, profile.userId);
+      setLinkState("linked");
+      // リダイレクト戻りの hash を削除（ブラウザ履歴を汚さない）
+      window.history.replaceState(null, "", window.location.pathname);
+    } catch (e) {
+      console.error("[LineLinkButton] user_line insert failed:", e);
+      setLinkState("unlinked");
+    }
+  };
+
   useEffect(() => {
     if (!currentUser) return;
+    // LINE 認証後のリダイレクト戻り（URL に hash あり）なら自動で連携を完了
+    if (window.location.hash) {
+      completeLinkFlow();
+      return;
+    }
     checkLinkStatus();
   }, [currentUser]);
 
@@ -22,17 +44,7 @@ export default function LineLinkButton() {
   };
 
   const handleLink = async () => {
-    if (!currentUser) return;
-    setLinkState("loading");
-    try {
-      const liff = await initLiff();
-      if (!liff) return;
-      const profile = await liff.getProfile();
-      await userLineRepository.insert(currentUser.id, profile.userId);
-      setLinkState("linked");
-    } catch {
-      setLinkState("unlinked");
-    }
+    await completeLinkFlow();
   };
 
   if (linkState === "loading") {

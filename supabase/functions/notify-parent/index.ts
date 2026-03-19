@@ -211,6 +211,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log("[notify-parent] user_id ok, fetching score");
     const { data: scoreData } = await supabase
       .from("score")
       .select("score, created_at")
