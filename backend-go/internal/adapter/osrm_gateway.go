@@ -357,10 +357,11 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 
 	// Overpass QL クエリ:
 	// 1. 指定ノードを含む公道 way を取得
-	// 2. その公道 way 上の歩行者信号付き横断歩道 (crossing=traffic_signals) node を取得
-	//    車両用信号 (highway=traffic_signals) は除外対象にしない
+	// 2. その公道 way 上の歩行者信号 (crossing=traffic_signals) と
+	//    車両信号 (highway=traffic_signals) を両方取得
+	//    どちらかでも近傍にあれば信号付き交差点として除外する
 	query := fmt.Sprintf(
-		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"]->.public;.public out skel qt;(node.isec["crossing"="traffic_signals"];node(w.public)["crossing"="traffic_signals"];);out tags qt;`,
+		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"]->.public;.public out skel qt;(node.isec["crossing"="traffic_signals"];node(w.public)["crossing"="traffic_signals"];node.isec["highway"="traffic_signals"];node(w.public)["highway"="traffic_signals"];);out tags qt;`,
 		sb.String(), highwayRegex,
 	)
 
@@ -416,7 +417,8 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 		PublicNodes: make(map[int]bool),
 		SignalNodes: make(map[int]bool),
 	}
-	signalTaggedNodes := make(map[int]bool)
+	pedestrianSignalNodes := make(map[int]bool)
+	vehicleSignalNodes := make(map[int]bool)
 	publicWays := make([][]int, 0)
 	for _, elem := range data.Elements {
 		switch elem.Type {
@@ -428,12 +430,15 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 				}
 			}
 		case "node":
-			if isSignalTagged(elem.Tags) {
-				signalTaggedNodes[elem.ID] = true
+			if isPedestrianSignalTagged(elem.Tags) {
+				pedestrianSignalNodes[elem.ID] = true
+			}
+			if isVehicleSignalTagged(elem.Tags) {
+				vehicleSignalNodes[elem.ID] = true
 			}
 		}
 	}
-	markSignalizedIntersections(result.SignalNodes, publicWays, nodeIDSet, signalTaggedNodes)
+	markSignalizedIntersections(result.SignalNodes, publicWays, nodeIDSet, pedestrianSignalNodes, vehicleSignalNodes)
 
 	slog.Info("Overpass", "queried", len(nodeIDs), "public", len(result.PublicNodes), "signals", len(result.SignalNodes))
 	return result, nil
@@ -593,7 +598,16 @@ func mergeOverpassResult(dst, src *overpassResult) {
 // 1 に設定することで隣接交差点への波及を防ぐ．
 const signalMaxHops = 1
 
-func markSignalizedIntersections(signalNodes map[int]bool, publicWays [][]int, nodeIDSet map[int]bool, signalTaggedNodes map[int]bool) {
+func markSignalizedIntersections(
+	signalNodes map[int]bool,
+	publicWays [][]int,
+	nodeIDSet map[int]bool,
+	pedestrianSignalNodes map[int]bool,
+	vehicleSignalNodes map[int]bool,
+) {
+	pedestrianNearby := make(map[int]bool, len(nodeIDSet))
+	vehicleNearby := make(map[int]bool, len(nodeIDSet))
+
 	for _, wayNodes := range publicWays {
 		for i, nid := range wayNodes {
 			if !nodeIDSet[nid] {
@@ -602,17 +616,29 @@ func markSignalizedIntersections(signalNodes map[int]bool, publicWays [][]int, n
 			lo := max(0, i-signalMaxHops)
 			hi := min(len(wayNodes)-1, i+signalMaxHops)
 			for j := lo; j <= hi; j++ {
-				if signalTaggedNodes[wayNodes[j]] {
-					signalNodes[nid] = true
-					break
+				if pedestrianSignalNodes[wayNodes[j]] {
+					pedestrianNearby[nid] = true
+				}
+				if vehicleSignalNodes[wayNodes[j]] {
+					vehicleNearby[nid] = true
 				}
 			}
 		}
 	}
+
+	for nid := range nodeIDSet {
+		if pedestrianNearby[nid] || vehicleNearby[nid] {
+			signalNodes[nid] = true
+		}
+	}
 }
 
-func isSignalTagged(tags map[string]string) bool {
+func isPedestrianSignalTagged(tags map[string]string) bool {
 	return tags["crossing"] == "traffic_signals"
+}
+
+func isVehicleSignalTagged(tags map[string]string) bool {
+	return tags["highway"] == "traffic_signals"
 }
 
 func trimCache(cache map[int]bool, order []int) []int {
