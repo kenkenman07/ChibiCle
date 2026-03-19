@@ -140,41 +140,41 @@ export default function Result() {
 
           {/* マップ表示エリア */}
 
-          <div className="bg-gray-200 rounded-3xl relative overflow-hidden border-4 border-white shadow-inner h-64 z-10">
-            {unsafePoints != null && (
-              <MapContainer
-                center={center} // 浜松駅周辺を中心に設定
-                zoom={14}
-                className="absolute inset-0 z-0"
-              >
-                <TileLayer
-                  attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-
-                {unsafePoints &&
-                  unsafePoints.map((point, index) => (
-                    <Marker
-                      key={index}
-                      position={[point.lat, point.lng]}
-                      icon={currentLocationIcon}
-                    ></Marker>
-                  ))}
-              </MapContainer>
-            )}
-          </div>
-
           {/* 要注意ポイントのリスト表示 */}
-          <div className="flex flex-col gap-3">
-            {unsafePoints && unsafePoints.length === 0 && (
+          {unsafePoints && unsafePoints.length === 0 ? (
+            <div className="flex flex-col gap-3">
               <div className="bg-emerald-50 rounded-2xl p-4 text-center border border-emerald-100">
                 <ShieldCheck className="w-6 h-6 text-[#48b98b] mx-auto mb-2" />
                 <p className="text-sm text-emerald-700 font-bold">
                   全ての交差点を安全に通行できました！
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            unsafePoints != null && (
+              <div className="bg-gray-200 rounded-3xl relative overflow-hidden border-4 border-white shadow-inner h-64 z-10">
+                <MapContainer
+                  center={center} // 浜松駅周辺を中心に設定
+                  zoom={14}
+                  className="absolute inset-0 z-0"
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+
+                  {unsafePoints &&
+                    unsafePoints.map((point, index) => (
+                      <Marker
+                        key={index}
+                        position={[point.lat, point.lng]}
+                        icon={currentLocationIcon}
+                      ></Marker>
+                    ))}
+                </MapContainer>
+              </div>
+            )
+          )}
         </motion.div>
 
         {/* ダッシュボードへ戻るボタン */}

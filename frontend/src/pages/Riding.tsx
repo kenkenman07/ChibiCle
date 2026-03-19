@@ -150,6 +150,7 @@ export default function Riding() {
       (stoppedData.length / passedData.length) * 100
     );
 
+    //デバッグ用。data→passedData
     const score: ScoreJson = {
       scorePercent: scorePercent,
       intersectionNumber: passedData.length,

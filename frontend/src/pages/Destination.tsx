@@ -108,13 +108,6 @@ export default function Destination() {
     }
   }, [gps]);
 
-  useEffect(() => {
-    return () => {
-      tripRepository.delete();
-      intersectionResultsRepository.delete();
-    };
-  }, []);
-
   const createTrip = async (destination: [number, number]) => {
     if (!destination) return;
     const tripInfo = await sendTrips({
@@ -179,6 +172,9 @@ export default function Destination() {
       origin_lat: currentLocation[0],
       origin_lng: currentLocation[1],
     });
+
+    //デバッグ用
+    //console.log(routeData);
 
     setRoute(routeData);
     tripStore.set(routeData);
