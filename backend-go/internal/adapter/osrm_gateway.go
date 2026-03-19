@@ -109,6 +109,19 @@ type osrmIntersection struct {
 	Bearings []int     `json:"bearings"` // 各方向の方位角．要素数=合流する道路数
 }
 
+// annotatedCoord は経路ジオメトリ上の座標と対応する OSM ノード ID のペア．
+// annotation.nodes と geometry.coordinates の位置インデックス対応を保持し，
+// 完全一致マッチが失敗した場合の最近傍フォールバックに使用する．
+type annotatedCoord struct {
+	lat, lng float64
+	nodeID   int
+}
+
+// nearestNodeThresholdM は最近傍フォールバック時の許容距離（メートル）．
+// OSRM の intersection location と geometry coordinate は同一 OSM ノードを指すため
+// 通常は 1m 未満のずれだが，ジオメトリ圧縮等に備えて余裕をもたせている．
+const nearestNodeThresholdM = 10.0
+
 type overpassResponse struct {
 	Elements []overpassElement `json:"elements"`
 }
@@ -183,11 +196,14 @@ func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.La
 	}
 
 	coordToNode := make(map[[2]float64]int)
+	annotatedCoords := make([]annotatedCoord, 0, len(annotationNodes))
 	for i, nodeID := range annotationNodes {
 		if i < len(osrmR.Geometry.Coordinates) {
 			c := osrmR.Geometry.Coordinates[i]
-			key := [2]float64{roundTo6(c[1]), roundTo6(c[0])}
+			lat, lng := c[1], c[0]
+			key := [2]float64{roundTo6(lat), roundTo6(lng)}
 			coordToNode[key] = nodeID
+			annotatedCoords = append(annotatedCoords, annotatedCoord{lat: lat, lng: lng, nodeID: nodeID})
 		}
 	}
 
@@ -216,11 +232,10 @@ func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.La
 					NumRoads: len(isec.Bearings),
 				})
 				nodeID, ok := coordToNode[key]
-				if ok {
-					isecNodeIDs = append(isecNodeIDs, nodeID)
-				} else {
-					isecNodeIDs = append(isecNodeIDs, 0) // マッピングが見つからない場合は 0
+				if !ok {
+					nodeID = findNearestAnnotationNode(lat, lng, annotatedCoords, nearestNodeThresholdM)
 				}
+				isecNodeIDs = append(isecNodeIDs, nodeID)
 				idx++
 			}
 		}
@@ -427,6 +442,31 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 // 座標の重複判定で使用する（約0.1mの精度）．
 func roundTo6(v float64) float64 {
 	return math.Round(v*1e6) / 1e6
+}
+
+// findNearestAnnotationNode は annotatedCoords を線形走査し，
+// (lat, lng) に最も近い座標の nodeID を返す．
+// 最近傍が thresholdM 以内であればその nodeID を返し，超過時は 0 を返す．
+func findNearestAnnotationNode(lat, lng float64, coords []annotatedCoord, thresholdM float64) int {
+	bestDist := math.MaxFloat64
+	bestID := 0
+	for _, ac := range coords {
+		d := domain.DistanceM(lat, lng, ac.lat, ac.lng)
+		if d < bestDist {
+			bestDist = d
+			bestID = ac.nodeID
+		}
+	}
+	if bestDist <= thresholdM {
+		slog.Debug("intersection→node: fallback nearest match",
+			"dist_m", bestDist, "nodeID", bestID,
+			"isec_lat", lat, "isec_lng", lng)
+		return bestID
+	}
+	slog.Warn("intersection→node: no match within threshold",
+		"best_dist_m", bestDist, "threshold_m", thresholdM,
+		"isec_lat", lat, "isec_lng", lng)
+	return 0
 }
 
 func splitIntersectionsByNodeID(intersections []domain.Intersection, nodeIDs []int) ([]intersectionNodePair, []domain.Intersection) {
