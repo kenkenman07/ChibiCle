@@ -35,8 +35,19 @@ var highwayRegex = strings.Join(publicRoadTypes, "|")
 // nodeCacheMax は Overpass 判定キャッシュの最大エントリ数．
 const nodeCacheMax = 50_000
 
+const (
+	routeCacheMax = 200
+	routeCacheTTL = 3 * time.Minute
+)
+
+type routeCacheEntry struct {
+	route     *domain.Route
+	expiresAt time.Time
+}
+
 // OsrmGateway は OSRM（自転車ルーティング）と Overpass API（公道・信号判定）を
 // 組み合わせた RoutingService の実装．
+// ルート結果とノード判定結果の2層キャッシュを持つ．
 type OsrmGateway struct {
 	baseURL                       string       // OSRM APIのベースURL
 	profile                       string       // OSRM profile名（例: bike）
@@ -51,6 +62,10 @@ type OsrmGateway struct {
 	nodeCacheOrder   []int        // FIFO eviction 用の挿入順序
 	signalCache      map[int]bool // 交差点のOSMノードID → 接続公道上に signal 関連要素があるか
 	signalCacheOrder []int        // FIFO eviction 用の挿入順序
+
+	routeCacheMu    sync.RWMutex             // ルートキャッシュの排他制御（ノードキャッシュとは独立）
+	routeCache      map[string]routeCacheEntry
+	routeCacheOrder []string
 }
 
 func NewOsrmGateway(baseURL, profile string, minRoads int, filterNonPublicRoads, filterSignalizedIntersections bool, overpassURL string, client *http.Client) *OsrmGateway {
@@ -64,12 +79,51 @@ func NewOsrmGateway(baseURL, profile string, minRoads int, filterNonPublicRoads,
 		httpClient:                    client,
 		nodeCache:                     make(map[int]bool),
 		signalCache:                   make(map[int]bool),
+		routeCache:                    make(map[string]routeCacheEntry),
 	}
 }
 
 // GetBicycleRoute は domain.RoutingService インターフェースの実装．
+// 同一起終点（小数点5桁丸め）に対してはキャッシュから即座に返す．
 func (g *OsrmGateway) GetBicycleRoute(ctx context.Context, origin, destination domain.LatLng) (*domain.Route, error) {
-	return g.doRoute(ctx, origin, destination)
+	cacheKey := fmt.Sprintf("%.5f,%.5f;%.5f,%.5f", origin.Lat, origin.Lng, destination.Lat, destination.Lng)
+
+	g.routeCacheMu.RLock()
+	if entry, ok := g.routeCache[cacheKey]; ok && time.Now().Before(entry.expiresAt) {
+		g.routeCacheMu.RUnlock()
+		slog.Info("OSRM ルートキャッシュヒット", "key", cacheKey)
+		return entry.route, nil
+	}
+	g.routeCacheMu.RUnlock()
+
+	route, err := g.doRoute(ctx, origin, destination)
+	if err != nil {
+		return nil, err
+	}
+
+	g.writeRouteCache(cacheKey, route)
+	return route, nil
+}
+
+func (g *OsrmGateway) writeRouteCache(key string, route *domain.Route) {
+	g.routeCacheMu.Lock()
+	defer g.routeCacheMu.Unlock()
+
+	g.routeCache[key] = routeCacheEntry{
+		route:     route,
+		expiresAt: time.Now().Add(routeCacheTTL),
+	}
+	g.routeCacheOrder = append(g.routeCacheOrder, key)
+
+	if len(g.routeCache) > routeCacheMax {
+		excess := len(g.routeCache) - routeCacheMax
+		for _, k := range g.routeCacheOrder[:excess] {
+			delete(g.routeCache, k)
+		}
+		remaining := make([]string, len(g.routeCacheOrder)-excess)
+		copy(remaining, g.routeCacheOrder[excess:])
+		g.routeCacheOrder = remaining
+	}
 }
 
 // --- OSRM JSON レスポンス型 ---
@@ -135,7 +189,8 @@ type overpassElement struct {
 
 // doRoute は OSRM API を呼び出し，ルートと交差点を抽出する．
 func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.LatLng) (*domain.Route, error) {
-	// OSRM は lng,lat の順で座標を受け取る
+	tTotal := time.Now()
+
 	coords := fmt.Sprintf("%f,%f;%f,%f", origin.Lng, origin.Lat, destination.Lng, destination.Lat)
 	reqURL := fmt.Sprintf("%s/route/v1/%s/%s?steps=true&geometries=geojson&overview=full&annotations=nodes", g.baseURL, g.profile, coords)
 
@@ -166,7 +221,8 @@ func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.La
 	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, &domain.OsrmRoutingError{Message: "レスポンスのパースに失敗"}
 	}
-	slog.Info("OSRM", "duration", time.Since(t0).Seconds())
+	osrmDuration := time.Since(t0)
+	slog.Info("OSRM API", "duration_s", osrmDuration.Seconds(), "body_bytes", len(body))
 
 	if data.Code != "Ok" {
 		msg := data.Message
@@ -251,12 +307,19 @@ func (g *OsrmGateway) doRoute(ctx context.Context, origin, destination domain.La
 		}
 	}
 
-	return &domain.Route{
+	route := &domain.Route{
 		Geometry:      geometry,
 		Intersections: intersections,
 		DistanceM:     osrmR.Distance,
 		DurationS:     osrmR.Duration,
-	}, nil
+	}
+	slog.Info("doRoute 完了",
+		"total_s", time.Since(tTotal).Seconds(),
+		"osrm_s", osrmDuration.Seconds(),
+		"intersections", len(intersections),
+		"geometry_points", len(geometry),
+	)
+	return route, nil
 }
 
 // --- Overpass API による公道フィルタリング ---
@@ -346,7 +409,7 @@ type overpassResult struct {
 // 公道判定と signal 関連交差点判定を1回のクエリで行う．
 // 429 レートリミット時は指数バックオフで最大3回リトライする．
 func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (*overpassResult, error) {
-	// ノードIDリストをカンマ区切り文字列に変換
+	t0 := time.Now()
 	var sb strings.Builder
 	for i, nid := range nodeIDs {
 		if i > 0 {
@@ -440,7 +503,12 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 	}
 	markSignalizedIntersections(result.SignalNodes, publicWays, nodeIDSet, pedestrianSignalNodes, vehicleSignalNodes)
 
-	slog.Info("Overpass", "queried", len(nodeIDs), "public", len(result.PublicNodes), "signals", len(result.SignalNodes))
+	slog.Info("Overpass API",
+		"duration_s", time.Since(t0).Seconds(),
+		"queried", len(nodeIDs),
+		"public", len(result.PublicNodes),
+		"signals", len(result.SignalNodes),
+	)
 	return result, nil
 }
 

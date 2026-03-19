@@ -3,6 +3,8 @@ package usecase
 import (
 	"btd/internal/domain"
 	"context"
+	"log/slog"
+	"time"
 )
 
 // GpsAnalysisUseCase はGPSバッチデータを受信し，交差点での一時停止判定と経路逸脱検知を行うユースケース．
@@ -40,7 +42,8 @@ func NewGpsAnalysisUseCase(
 // Execute はGPSポイントを保存し，経路逸脱チェック→一時停止判定を実行する．
 // 処理結果として保存件数，交差点判定結果，リルート有無を返す．
 func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points []domain.GpsPoint) (*domain.GpsAnalysisResult, error) {
-	// GPSポイントをリポジトリに追記
+	tTotal := time.Now()
+
 	if err := uc.gpsRepo.AppendPoints(tripID, points); err != nil {
 		return nil, err
 	}
@@ -51,7 +54,6 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 		return nil, err
 	}
 
-	// 経路逸脱チェック: 最新GPSポイントがルートから離れすぎていたらリルート
 	if route != nil && len(points) > 0 {
 		lastPoint := points[len(points)-1]
 		if uc.isOffRoute(lastPoint, route) {
@@ -105,7 +107,7 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 		}
 	}
 
-	// 交差点での一時停止判定
+	tStopDetect := time.Now()
 	results, err := uc.routeRepo.GetIntersectionResults(tripID)
 	if err != nil {
 		return nil, err
@@ -153,10 +155,17 @@ func (uc *GpsAnalysisUseCase) Execute(ctx context.Context, tripID string, points
 		}
 	}
 
-	// 更新された判定結果を保存
 	if err := uc.routeRepo.SaveIntersectionResults(tripID, results); err != nil {
 		return nil, err
 	}
+
+	slog.Info("GpsAnalysis",
+		"total_s", time.Since(tTotal).Seconds(),
+		"stop_detect_s", time.Since(tStopDetect).Seconds(),
+		"points", len(points),
+		"intersections", len(results),
+		"rerouted", rerouted,
+	)
 
 	return &domain.GpsAnalysisResult{
 		Saved:               len(points),

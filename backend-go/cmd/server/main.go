@@ -30,11 +30,14 @@ func main() {
 	}
 
 	// 共有HTTPクライアント（外部API呼び出し用）
-	// コネクションプールを明示的に設定し，User-Agent を自動付与する
+	// コネクションプールを明示的に設定し，User-Agent を自動付与する．
+	// ForceAttemptHTTP2 により TLS 接続時に HTTP/2 ネゴシエーション（ALPN）を試みる．
+	// DisableCompression=false（デフォルト）により Accept-Encoding: gzip が自動付与される．
 	transport := &http.Transport{
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 20,
 		IdleConnTimeout:     30 * time.Second,
+		ForceAttemptHTTP2:   true,
 	}
 	httpClient := &http.Client{
 		Timeout: 15 * time.Second,
