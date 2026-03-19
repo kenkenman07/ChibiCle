@@ -13,8 +13,13 @@ export default function LineLinkButton() {
       await liff.init({
         liffId: import.meta.env.VITE_LIFF_ID,
       });
-      const profile = await liff.getProfile();
-      await userLineRepository.insert(currentUser.id, profile.userId);
+
+      if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile();
+        await userLineRepository.insert(currentUser.id, profile.userId);
+      } else {
+        console.log("ログインしていない");
+      }
     };
 
     insertProfile();
