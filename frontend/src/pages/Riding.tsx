@@ -121,7 +121,7 @@ export default function Riding() {
     console.log("access_token", session?.access_token);
 
     try {
-      await supabase.functions.invoke("notify-parent", {
+      await supabase.functions.invoke("index", {
         body: { user_id: currentUser!.id },
       });
     } catch (e) {
