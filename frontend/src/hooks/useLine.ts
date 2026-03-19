@@ -6,10 +6,11 @@ export const useLine = () => {
 
   useEffect(() => {
     const fetchLineUserId = async () => {
-      const liff = await initLiff();
-      if (!liff) return;
+      // const liff = await initLiff();
+      // if (!liff) return;
 
-      const profile = await liff.getProfile();
+      const profile = await initLiff();
+      if (!profile) return;
       setLineUserId(profile.userId);
     };
 
