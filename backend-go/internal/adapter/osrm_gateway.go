@@ -48,7 +48,7 @@ type OsrmGateway struct {
 	mu               sync.RWMutex // ノードキャッシュの排他制御
 	nodeCache        map[int]bool // OSMノードID → 公道上にあるか
 	nodeCacheOrder   []int        // FIFO eviction 用の挿入順序
-	signalCache      map[int]bool // OSMノードID → 信号機があるか
+	signalCache      map[int]bool // 交差点のOSMノードID → 接続公道上に signal 関連要素があるか
 	signalCacheOrder []int        // FIFO eviction 用の挿入順序
 }
 
@@ -112,9 +112,10 @@ type overpassResponse struct {
 }
 
 type overpassElement struct {
-	Type  string `json:"type"`
-	ID    int    `json:"id"`    // node の場合のノードID
-	Nodes []int  `json:"nodes"` // way に含まれるノードID列
+	Type  string            `json:"type"`
+	ID    int               `json:"id"`    // node の場合のノードID
+	Nodes []int             `json:"nodes"` // way に含まれるノードID列
+	Tags  map[string]string `json:"tags"`  // node/way のタグ
 }
 
 // doRoute は OSRM API を呼び出し，ルートと交差点を抽出する．
@@ -273,7 +274,7 @@ func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, interse
 		allNIDs[i] = p.nodeID
 	}
 
-	// Overpass API で公道・信号を同時判定（キャッシュ付き）
+	// Overpass API で公道・信号交差点を同時判定（キャッシュ付き）
 	t0 := time.Now()
 	overpass, err := g.resolvePublicNodes(ctx, allNIDs)
 	if err != nil {
@@ -281,7 +282,7 @@ func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, interse
 	}
 	slog.Info("公道・信号判定", "duration", time.Since(t0).Seconds())
 
-	// 公道上かつ信号なしの交差点のみ残し，unknown は安全側に含める
+	// 公道上かつ signal 関連要素のない交差点のみ残し，unknown は安全側に含める
 	before := len(intersections)
 	var filtered []domain.Intersection
 	var signalCount int
@@ -306,7 +307,8 @@ func (g *OsrmGateway) filterPublicRoadIntersections(ctx context.Context, interse
 	return result, nil
 }
 
-// resolvePublicNodes はノードIDリストについて公道上にあるか・信号があるかを判定する．
+// resolvePublicNodes はノードIDリストについて公道上にあるか・signal 関連交差点かを判定する．
+// 信号判定は中心nodeだけでなく，接続公道 way 上の signal 関連 node も含めて評価する．
 // 公道判定と信号判定は別キャッシュで保持し，どちらかが未判定のノードだけ Overpass API に問い合わせる．
 func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (*overpassResult, error) {
 	result := &overpassResult{
@@ -383,14 +385,14 @@ func (g *OsrmGateway) resolvePublicNodes(ctx context.Context, nodeIDs []int) (*o
 }
 
 // overpassResult は Overpass API クエリの結果を格納する．
-// 公道判定と信号判定の両方の結果を1回のクエリで取得する．
+// 公道判定と signal 関連交差点判定の両方の結果を1回のクエリで取得する．
 type overpassResult struct {
-	PublicNodes map[int]bool // 公道上にあるノード
-	SignalNodes map[int]bool // 信号機があるノード
+	PublicNodes map[int]bool // 公道上にある交差点ノード
+	SignalNodes map[int]bool // signal 関連要素を持つ公道に接続している交差点ノード
 }
 
 // queryPublicRoadNodes は Overpass API にノードIDリストを問い合わせ，
-// 公道判定と信号判定を1回のクエリで行う．
+// 公道判定と signal 関連交差点判定を1回のクエリで行う．
 // 429 レートリミット時は指数バックオフで最大3回リトライする．
 func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (*overpassResult, error) {
 	// ノードIDリストをカンマ区切り文字列に変換
@@ -402,11 +404,11 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 		sb.WriteString(strconv.Itoa(nid))
 	}
 
-	// Overpass QL クエリ: 公道 way と信号ノードを同時に検索
+	// Overpass QL クエリ:
 	// 1. 指定ノードを含む公道 way を取得
-	// 2. 指定ノードのうち highway=traffic_signals のものを取得
+	// 2. その公道 way 上の signal 関連 node を取得
 	query := fmt.Sprintf(
-		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"];out skel qt;node.isec["highway"="traffic_signals"];out ids qt;`,
+		`[out:json][timeout:10];node(id:%s)->.isec;way(bn.isec)["highway"~"^(%s)$"]->.public;.public out skel qt;(node.isec["highway"="traffic_signals"];node(w.public)["highway"="traffic_signals"];node(w.public)["crossing"="traffic_signals"];node(w.public)[~"^traffic_signals(:.*)?$"~".*"];);out tags qt;`,
 		sb.String(), highwayRegex,
 	)
 
@@ -462,20 +464,45 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 		PublicNodes: make(map[int]bool),
 		SignalNodes: make(map[int]bool),
 	}
+	signalTaggedNodes := make(map[int]bool)
+	publicWays := make([][]int, 0)
 	for _, elem := range data.Elements {
 		switch elem.Type {
 		case "way":
+			publicWays = append(publicWays, elem.Nodes)
 			for _, nid := range elem.Nodes {
 				if nodeIDSet[nid] {
 					result.PublicNodes[nid] = true
 				}
 			}
 		case "node":
-			if nodeIDSet[elem.ID] {
-				result.SignalNodes[elem.ID] = true
+			if isSignalTagged(elem.Tags) {
+				signalTaggedNodes[elem.ID] = true
 			}
 		}
 	}
+
+	for _, wayNodes := range publicWays {
+		hasSignalOnWay := false
+		hasQueriedNode := false
+		for _, nid := range wayNodes {
+			if signalTaggedNodes[nid] {
+				hasSignalOnWay = true
+			}
+			if nodeIDSet[nid] {
+				hasQueriedNode = true
+			}
+		}
+		if !hasSignalOnWay || !hasQueriedNode {
+			continue
+		}
+		for _, nid := range wayNodes {
+			if nodeIDSet[nid] {
+				result.SignalNodes[nid] = true
+			}
+		}
+	}
+
 	slog.Info("Overpass", "queried", len(nodeIDs), "public", len(result.PublicNodes), "signals", len(result.SignalNodes))
 	return result, nil
 }
@@ -484,6 +511,24 @@ func (g *OsrmGateway) queryPublicRoadNodes(ctx context.Context, nodeIDs []int) (
 // 座標の重複判定で使用する（約0.1mの精度）．
 func roundTo6(v float64) float64 {
 	return math.Round(v*1e6) / 1e6
+}
+
+func isSignalTagged(tags map[string]string) bool {
+	if len(tags) == 0 {
+		return false
+	}
+	if tags["highway"] == "traffic_signals" {
+		return true
+	}
+	if tags["crossing"] == "traffic_signals" {
+		return true
+	}
+	for key := range tags {
+		if key == "traffic_signals" || strings.HasPrefix(key, "traffic_signals:") {
+			return true
+		}
+	}
+	return false
 }
 
 func trimCache(cache map[int]bool, order []int) []int {
