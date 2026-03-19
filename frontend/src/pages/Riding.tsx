@@ -155,7 +155,7 @@ export default function Riding() {
       scorePercent: scorePercent,
       intersectionNumber: passedData.length,
       stoppedCount: stoppedData.length,
-      notSafetyIntersections: data
+      notSafetyIntersections: passedData
         .filter((i) => !i.stopped)
         .map((i) => ({
           lat: i.lat,

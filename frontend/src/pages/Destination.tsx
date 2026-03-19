@@ -174,7 +174,7 @@ export default function Destination() {
     });
 
     //デバッグ用
-    console.log(routeData);
+    //console.log(routeData);
 
     setRoute(routeData);
     tripStore.set(routeData);
