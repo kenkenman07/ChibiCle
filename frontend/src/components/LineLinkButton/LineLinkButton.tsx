@@ -21,6 +21,8 @@ export default function LineLinkButton() {
 
       console.log(liff);
     };
+
+    initLiff();
   }, []);
 
   const checkLinkStatus = async () => {
