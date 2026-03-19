@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { MessageCircle, Check, Loader2 } from "lucide-react";
 import { useCurrentUserStore } from "../../modules/auth/current-user.state";
 import { userLineRepository } from "../../modules/userLine/userLine.repository";
-import { initLiff } from "../../lib/liff";
+import liff from "@line/liff";
 
 type LinkState = "loading" | "unlinked" | "linked";
 
@@ -11,45 +11,70 @@ export default function LineLinkButton() {
   const [linkState, setLinkState] = useState<LinkState>("loading");
 
   useEffect(() => {
-    if (!currentUser) return;
-    checkLinkStatus();
-  }, [currentUser]);
+    if (!currentUser) {
+      setLinkState("unlinked");
+      return;
+    }
 
-  useEffect(() => {
-    const init = async () => {
-      const liff = await initLiff();
+    const restoreLink = async () => {
+      try {
+        const record = await userLineRepository.find(currentUser.id);
+        if (record?.line_id) {
+          setLinkState("linked");
+          return;
+        }
 
-      console.log(liff);
+        const started = sessionStorage.getItem("line_link_started");
+        if (started !== "true") {
+          setLinkState("unlinked");
+          return;
+        }
+
+        await liff.init({
+          liffId: import.meta.env.VITE_LIFF_ID,
+        });
+
+        if (!liff.isLoggedIn()) {
+          setLinkState("unlinked");
+          return;
+        }
+
+        const profile = await liff.getProfile();
+        await userLineRepository.insert(currentUser.id, profile.userId);
+
+        sessionStorage.removeItem("line_link_started");
+        setLinkState("linked");
+      } catch (error) {
+        console.error(error);
+        sessionStorage.removeItem("line_link_started");
+        setLinkState("unlinked");
+      }
     };
 
-    init();
-  }, []);
-
-  const checkLinkStatus = async () => {
-    if (!currentUser) return;
-    const record = await userLineRepository.find(currentUser.id);
-    setLinkState(record?.line_id ? "linked" : "unlinked");
-  };
+    restoreLink();
+  }, [currentUser]);
 
   const handleLink = async () => {
     if (!currentUser) return;
+
     setLinkState("loading");
+
     try {
-      const liff = await initLiff();
-      if (!liff) return;
-      console.log(liff);
+      await liff.init({
+        liffId: import.meta.env.VITE_LIFF_ID,
+      });
 
       if (!liff.isLoggedIn()) {
-        liff.login(); // ← ここだけ遷移する
+        sessionStorage.setItem("line_link_started", "true");
+        liff.login();
         return;
       }
 
       const profile = await liff.getProfile();
-
-      console.log(profile);
       await userLineRepository.insert(currentUser.id, profile.userId);
       setLinkState("linked");
-    } catch {
+    } catch (error) {
+      console.error(error);
       setLinkState("unlinked");
     }
   };
