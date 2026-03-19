@@ -82,7 +82,7 @@ func main() {
 		AllowCredentials: true,
 	}
 	if settings.CorsAllowAll {
-		corsOpts.AllowedOrigins = []string{"*"}
+		corsOpts.AllowOriginFunc = func(r *http.Request, origin string) bool { return true }
 	} else {
 		corsOpts.AllowedOrigins = settings.CorsOrigins
 	}
