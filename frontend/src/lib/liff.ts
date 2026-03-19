@@ -1,4 +1,4 @@
-import liff from "@line/liff";
+// import liff from "@line/liff";
 
 export const initLiff = async () => {
   await liff.init({

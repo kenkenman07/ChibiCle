@@ -5,6 +5,8 @@ import { Bike, Users, CheckCircle2, ArrowRight } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
 import { useRoleStore, type Role } from "../modules/role/role.state";
 
+import LineLinkButton from "../components/LineLinkButton/LineLinkButton";
+
 export default function RoleSelect() {
   const [selectedRole, setSelectedRole] = useState<Role>(null);
   const roleStore = useRoleStore();
@@ -119,6 +121,8 @@ export default function RoleSelect() {
 
         {/* ボタンを画面下部に押し下げるためのスペーサー */}
         <div className="flex-1 min-h-4"></div>
+
+        <LineLinkButton />
 
         {/* 次へボタン */}
         {/* 【修正】pb-12 に変更して、画面下部のセーフエリア（iPhoneのホームバー等）を確保 */}

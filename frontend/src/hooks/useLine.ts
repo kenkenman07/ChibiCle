@@ -1,5 +1,6 @@
+import liff from "@line/liff";
 import { useEffect, useState } from "react";
-import { initLiff } from "../lib/liff";
+//import { initLiff } from "../lib/liff";
 
 export const useLine = () => {
   const [lineUserId, setLineUserId] = useState<string | null>(null);

@@ -2,7 +2,7 @@
 import { MessageCircle } from "lucide-react";
 import { useCurrentUserStore } from "../../modules/auth/current-user.state";
 import { userLineRepository } from "../../modules/userLine/userLine.repository";
-import { initLiff } from "../../lib/liff";
+import liff from "@line/liff";
 
 // type LinkState = "loading" | "unlinked" | "linked";
 
@@ -86,9 +86,7 @@ export default function LineLinkButton() {
       </div>
       <div className="text-left">
         <p className="text-sm font-bold">LINEアカウントを連携する</p>
-        <p className="text-xs text-white/80">
-          走行結果の通知を受け取れます
-        </p>
+        <p className="text-xs text-white/80">走行結果の通知を受け取れます</p>
       </div>
     </button>
   );
