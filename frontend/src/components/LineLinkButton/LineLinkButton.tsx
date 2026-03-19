@@ -2,13 +2,13 @@
 import { MessageCircle } from "lucide-react";
 import { useCurrentUserStore } from "../../modules/auth/current-user.state";
 import { userLineRepository } from "../../modules/userLine/userLine.repository";
-import liff from "@line/liff";
+import { initLiff } from "../../lib/liff";
 
 // type LinkState = "loading" | "unlinked" | "linked";
 
 export default function LineLinkButton() {
   const { currentUser } = useCurrentUserStore();
-//   const [linkState, setLinkState] = useState<LinkState>("loading");
+  //   const [linkState, setLinkState] = useState<LinkState>("loading");
 
   // const completeLinkFlow = async () => {
   //   if (!currentUser) return;
