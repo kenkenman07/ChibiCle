@@ -27,6 +27,7 @@ import { useCurrentUserStore } from "../modules/auth/current-user.state";
 import type { ScoreJson } from "../modules/score/score.entity";
 import { tripRepository } from "../modules/trip/trip.repository";
 import { currentLocationIcon } from "./Destination";
+import { supabase } from "../lib/supabase";
 import type { IntersectionResults } from "../modules/intersectionResults/intersectionResults.entity";
 import { monthlyRepository } from "../modules/monthly/monthly.repository";
 
@@ -111,6 +112,13 @@ export default function Riding() {
   const finishRiding = async () => {
     await sendGps();
     await recordScore();
+    try {
+      await supabase.functions.invoke("notify-parent", {
+        body: { user_id: currentUser!.id },
+      });
+    } catch (e) {
+      console.warn("LINE通知の送信に失敗:", e);
+    }
     navigate("/result");
   };
 
