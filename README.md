@@ -40,6 +40,8 @@ ChibiCleは、走行中のGPSデータから交差点でちゃんと速度を落
 
 ## 利用の流れ
 
+![経路上の交差点検知](https://github.com/user-attachments/assets/9b42d0d2-c249-46e0-934d-8e36910b4ef3)
+
 1. 目的地を設定 — 地図タップや検索で出発地・目的地を選択
 2. ルートを確認 — 保護者と一緒にルートを確認
 3. 走行開始 — GPSで自動追跡し、交差点の減速をリアルタイム判定
@@ -48,6 +50,8 @@ ChibiCleは、走行中のGPSデータから交差点でちゃんと速度を落
 ---
 
 ## 判定のしくみ
+
+![安全通過の検知](https://github.com/user-attachments/assets/6f84c9a9-295d-4e34-89eb-d2e159aeff88)
 
 判定のための閾値は、backend-go/config/config.goで編集できます。
 
