@@ -42,7 +42,6 @@ export default function Result() {
 
   const fetchResult = async () => {
     const data = await scoreRepository.find(currentUser!.id);
-    console.log(data);
     if (data == null) return;
     const date = new Date(data.created_at);
     setDate(date.getDate());
