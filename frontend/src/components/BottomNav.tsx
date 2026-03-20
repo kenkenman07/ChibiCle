@@ -32,7 +32,7 @@ export default function BottomNav() {
 
       <NavItem
         icon={<User className="w-6 h-6" />}
-        active={false}
+        active={location.pathname === "/profile"}
         onClick={() => navigate("/profile")}
       />
     </div>
