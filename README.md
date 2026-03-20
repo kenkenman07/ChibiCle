@@ -95,17 +95,10 @@ npm install
 npm run dev
 ```
 
-### バックエンド
+### バックエンド (docker)
 
 ```bash
 cd backend-go
-go run ./cmd/server
+docker build -t backend-go .
+docker run -p 8000:8000 backend-go
 ```
-
-環境変数はプレフィックス `BTD_` で設定可能です（例: `BTD_PORT`, `BTD_OSRM_BASE_URL`）。デフォルト値が設定されているため、開発環境ではそのまま起動できます。
-
----
-
-## ライセンス
-
-本プロジェクトのライセンスは未定です。
