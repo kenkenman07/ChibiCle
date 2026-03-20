@@ -44,12 +44,10 @@ export default function SignIn() {
       exit="out"
       className="flex-1 bg-[#126f50] flex flex-col relative overflow-hidden"
     >
-      {/* 背景装飾 */}
       <div className="absolute top-10 -right-20 opacity-30 transform scale-150">
         <GlobeIllustration />
       </div>
 
-      {/* 上部コンテンツ：ロゴとコンセプト */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 relative z-10">
         <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-6 backdrop-blur-md shadow-lg shadow-teal-900/20 border border-white/30">
           <Bike className="w-10 h-10 text-white" />
@@ -71,7 +69,6 @@ export default function SignIn() {
         </div>
       </div>
 
-      {/* 下部コンテンツ：ログインアクション */}
       <div className="bg-[#f4f7f6] rounded-t-[2.5rem] px-8 py-12 flex flex-col items-center shadow-[0_-20px_40px_rgba(0,0,0,0.1)] relative z-20">
         <h2 className="text-xl font-bold text-gray-800 mb-6">
           アカウントにログイン
