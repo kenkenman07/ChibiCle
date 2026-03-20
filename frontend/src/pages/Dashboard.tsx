@@ -1,13 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import {
-  Map as MapIcon,
-  ShieldCheck,
-  Bike,
-  ClipboardCheck,
-  User,
-  Users,
-} from "lucide-react";
+import { Map as MapIcon, ClipboardCheck, User, Users } from "lucide-react";
 import GlobeIllustration from "../components/GlobeIllustration";
 import { useRoleStore } from "../modules/role/role.state";
 import { useEffect, useState } from "react";
@@ -17,6 +10,7 @@ import { monthlyRepository } from "../modules/monthly/monthly.repository";
 import { tripRepository } from "../modules/trip/trip.repository";
 import { intersectionResultsRepository } from "../modules/intersectionResults/intersectionResults.repository";
 import { gpsPointSyncedRepository } from "../modules/gpsPointSynced/gpsPointSynced.repository";
+import ScoreContent from "../components/Dashboard/ScoreContents";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -131,38 +125,16 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* メインコンテンツ */}
       <div className="bg-[#f4f7f6] px-6 pt-8 pb-32 rounded-t-[2.5rem] -mt-10 relative z-20 flex-1 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] flex flex-col">
         <h2 className="text-xl font-bold text-gray-800 mb-1">
           {role === "child" ? "今月の記録" : "子どもの今月の記録"}
         </h2>
         <p className="text-sm text-gray-500 mb-6">月間データダッシュボード</p>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-[#ff8652] rounded-3xl p-5 text-white shadow-lg shadow-orange-200/50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-white/20 w-16 h-16 rounded-bl-full" />
-            <div className="flex justify-between items-start mb-6">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div className="text-3xl font-bold mb-1">
-              {monthlyData?.monthly_safety_times}
-              <span className="text-sm font-normal opacity-80 ml-1">pt</span>
-            </div>
-            <div className="text-sm font-medium">安全スコア</div>
-          </div>
-
-          <div className="bg-[#7c83f5] rounded-3xl p-5 text-white shadow-lg shadow-indigo-200/50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-[#21247d]/20 w-16 h-16 rounded-bl-full" />
-            <div className="flex justify-between items-start mb-6">
-              <Bike className="w-6 h-6" />
-            </div>
-            <div className="text-3xl font-bold mb-1">
-              {monthlyData?.monthly_driving_times}
-              <span className="text-sm font-normal opacity-80 ml-1">回</span>
-            </div>
-            <div className="text-sm font-medium">走行回数</div>
-          </div>
-        </div>
+        <ScoreContent
+          monthlyDrivingTimes={monthlyData!.monthly_driving_times}
+          monthlyScore={monthlyData!.monthly_score}
+        />
 
         {/* 下の余白を埋める */}
         <div className="flex-1"></div>
